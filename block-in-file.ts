@@ -1,6 +1,5 @@
 #!/usr/bin/env deno
-import {readLines} from "https://deno.land/std/io/bufio.ts";
-import * as conversion from "https://deno.land/std/streams/conversion.ts";
+import {readLines} from "https://deno.land/std/io/mod.ts"
 
 export interface BlockInFileOptions {
 		after?: string | RegExp
@@ -14,16 +13,16 @@ export interface BlockInFileOptions {
 }
 
 export let defaults: BlockInFileOptions = {
-	after: string = undefined
-	before: string = undefined
-	comment: string = "#"
-	debug: boolean = false
-	diff: boolean = false
-	input: string = "-"
-	markerStart: string = "BLOCKINFILE START"
-	markerEnd: string = "BLOCKINFILE END"
-	name: string = "blockinfile"
-	output: string = "-"
+	after: undefined,
+	before: undefined,
+	comment: "#",
+	debug: false,
+	diff: false,
+	input: "-",
+	markerStart: "BLOCKINFILE START",
+	markerEnd: "BLOCKINFILE END",
+	name: "blockinfile",
+	output: "-",
 }
 
 export class BlockInFile implements BlockInFileOptions {
@@ -61,7 +60,7 @@ export class BlockInFile implements BlockInFileOptions {
 		}
 
 		Object.assign(this, opts, {
-			_after: after,k
+			_after: after,
 			_before: before,
 		});
 	}
@@ -82,7 +81,7 @@ export class BlockInFile implements BlockInFileOptions {
 			// do something with the text
 		}
 		const f=await Deno.open('./testdata/sample2.txt');
-		for await(const l of readLines(f))
+		for await(const l of readLines(f)) {
 		  console.log('Processing:', l);
 			
 		}
@@ -96,5 +95,6 @@ export class BlockInFile implements BlockInFileOptions {
 }
 
 if (import.meta.main) {
-	import("./main.ts").run(Deno.env)
+	//(await import("./main.ts")).run(Deno.env)
+	(await import("./cliffy.ts"))
 }
