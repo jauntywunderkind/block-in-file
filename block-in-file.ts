@@ -1,12 +1,12 @@
-#!/usr/bin/env deno
+#!/usr/bin/env -S deno eval
 import { readLines } from "https://deno.land/std/io/mod.ts"
 import { readAll } from "https://deno.land/std/streams/read_all.ts"
 
-function get<T>(source: Partial<T>, defaults: Partial<T>, ...keys) {
+function get<T>(source: Partial<T>, defaults: Partial<T>, ...keys: (keyof T)[]) {
 	if (keys.length === 1) {
 		const key = keys[0]
 		const o = source[key]
-		return o !== undefined ? o : defaults[key]
+		return (o !== undefined ? o : defaults[key]) as any
 	}
 
 	var o = new Array(keys.length)
@@ -24,13 +24,14 @@ export interface BlockInFileOptions {
 		after?: string | RegExp | boolean
 		before?: string | RegExp | boolean
 		comment: string
-		debug: boolean
-		diff: boolean
-		input: string
+		debug?: boolean
+		diff?: string | boolean
+		dos?: boolean
+		input?: string
 		markerStart: string
 		markerEnd: string
 		name: string
-		output: string
+		output?: string
 }
 
 export let defaults: BlockInFileOptions = {
@@ -38,27 +39,28 @@ export let defaults: BlockInFileOptions = {
 	before: undefined,
 	comment: "#",
 	debug: false,
-	diff: false,
-	input: "-",
+	diff: undefined,
+	dos: false,
+	input: undefined,
 	markerStart: "start",
 	markerEnd: "end",
 	name: "blockinfile",
 	output: undefined,
 }
 
-export class BlockInFile implements BlockInFileOptions {
+export class BlockInFile {
 	static defaults = defaults
 
-	options: BlockInFileOptions
+	options: Partial<BlockInFileOptions>
 
-	_content: string
+	_input?: string
 
 	constructor(options: Partial<BlockInFileOptions> = {}) {
 		this.options = options
 	}
 
 	async run(filePath: string) {
-		const [input, output, _before, _after, start, end, comment, name, diff, dos] = get(this.options, this.constructor.defaults || BlockInFile.defaults, "input", "output", "before", "after", "markerStart", "markerEnd", "comment", "name", "diff", "dos")
+		const [input, output, _before, _after, start, end, comment, name, diff, dos] = get(this.options, (this.constructor as any).defaults || BlockInFile.defaults, "input", "output", "before", "after", "markerStart", "markerEnd", "comment", "name", "diff", "dos")
 		if (_before && _after) {
 			throw new Error("Cannot have both 'before' and 'after'")
 		}
@@ -76,7 +78,7 @@ export class BlockInFile implements BlockInFileOptions {
 		const opener = `${comment} ${name} ${start}`
 		const closer = `${comment} ${name} ${end}`
 		const outputs = [] // output lines
-		const diffBuffer = diff ? [] : undefined
+		const diffBuffer = diff ? new Array<string>() : undefined
 
 		// read each line
 		const lines = readLines(await _input(filePath))
@@ -87,7 +89,6 @@ export class BlockInFile implements BlockInFileOptions {
 			outputs.push(opener, this._input, closer)
 		}
 		for await (const line of lines) {
-			console.log({line})
 			diffBuffer?.push(line)
 
 			if (!done && match?.test(line)) {

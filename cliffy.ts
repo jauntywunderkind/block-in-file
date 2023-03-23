@@ -12,20 +12,16 @@ export default async function main(args = Deno.args) {
 		.option("-c, --comment <comment:string>", "Comment string for marker", { default: "#" })
 		.option("--marker-end <end:string>", "Marker for end", { default: "end" })
 		.option("--marker-start <start:string>", "Marker for start", { default: "start" })
-		.option("-D, --diff <diff:string>", "Print diff")
+		.option("-D, --diff [output:string]", "Print diff")
 		.option("--dos", "Use dos line endings")
-		.option("-i, --input [input:string]", "Input file to read contents from, or - from stdout", { default: "-" })
-		.option("-o, --output [output:string]", "Output file, or - for stdout, or -- for no output, or --- for overwriting existing file", {default: "---"})
-		.option("-b, --before <regex:string>", "String or regex to insert before, or at beginning if no argument")
-		.option("-a, --after <regex:string", "String or regex to insert after, or at end if no argument")
+		.option("-i, --input <input:string>", "Input file to read contents from, or - from stdout", { default: "-" })
+		.option("-o, --output <output:string>", "Output file, or - for stdout, or -- for no output, or --- for overwriting existing file", {default: "---"})
+		.option("-b, --before [before:string]", "String or regex to insert before, or at beginning if no argument")
+		.option("-a, --after [after:string]", "String or regex to insert after, or at end if no argument")
 		.option("--multi", "Multi-line matching (not implemented)")
+		.option("--backup", "Backup file if changes (not implemented)")
 		.arguments("<files:string>")
 		.action(async (options, ...files) => {
-			console.log(options, files)
-			options.markerStart = options.start
-			delete options.start
-			options.markerEnd = options.end
-			delete options.end
 			const bif = new BlockInFile(options)
 			await Promise.all(files.map(file => bif.run(file)))
 		})
