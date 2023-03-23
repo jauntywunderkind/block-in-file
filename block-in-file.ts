@@ -87,11 +87,12 @@ export class BlockInFile {
 
 		if (before === true) {
 			outputs.push(opener, this._input, closer)
+			done = true
 		}
 		for await (const line of lines) {
 			diffBuffer?.push(line)
 
-			if (!done && match?.test(line)) {
+			if (!done && match?.test?.(line)) {
 				if (before) {
 					outputs.push(opener, this._input, closer, line)
 				} else {
@@ -120,6 +121,7 @@ export class BlockInFile {
 		}
 		if (after === true || !done) {
 			outputs.push(opener, this._input, closer)
+			done = true
 		}
 
 		const outputText = outputs.join(dos ? "\r\n" : "\n")
