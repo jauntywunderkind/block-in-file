@@ -1,15 +1,36 @@
 #!/usr/bin/env deno
-import {readLines} from "https://deno.land/std/io/mod.ts"
+import { readLines } from "https://deno.land/std/io/mod.ts"
+import { readAll } from "https://deno.land/std/streams/read_all.ts"
+
+function get<T>(source: Partial<T>, defaults: Partial<T>, ...keys) {
+	if (keys.length === 1) {
+		const key = keys[0]
+		const o = source[key]
+		return o !== undefined ? o : defaults[key]
+	}
+
+	var o = new Array(keys.length)
+	for (let i in keys) {
+		o[i] = get(source, defaults, keys[i])
+	}
+	return o
+}
+
+async function _input(file: string) {
+	return file === "-" || file === undefined ? Deno.stdin : await Deno.open(file, { read: true })
+}
 
 export interface BlockInFileOptions {
-		after?: string | RegExp
-		before?: string | RegExp
-		comment: string 
+		after?: string | RegExp | boolean
+		before?: string | RegExp | boolean
+		comment: string
 		debug: boolean
 		diff: boolean
+		input: string
 		markerStart: string
 		markerEnd: string
 		name: string
+		output: string
 }
 
 export let defaults: BlockInFileOptions = {
@@ -19,82 +40,109 @@ export let defaults: BlockInFileOptions = {
 	debug: false,
 	diff: false,
 	input: "-",
-	markerStart: "BLOCKINFILE START",
-	markerEnd: "BLOCKINFILE END",
+	markerStart: "start",
+	markerEnd: "end",
 	name: "blockinfile",
-	output: "-",
+	output: undefined,
 }
 
 export class BlockInFile implements BlockInFileOptions {
 	static defaults = defaults
 
-	after: string | RegExp = BlockInFile.defaults.after
-	before: string | RegExp = BlockInFile.defaults.before
-	comment: string = BlockInFile.defaults.comment
-	debug: boolean = BlockInFile.defaults.debug
-	diff: boolean = BlockInFile.defaults.diff
-	input: boolean = BlockInFile.defaults.input
-	markerStart: string = BlockInFile.defaults.markerStart
-	markerEnd: string = BlockInFile.defaults.markerEnd
-	name: string = BlockInFile.defaults.name
-	output: boolean = BlockInFile.defaults.output
+	options: BlockInFileOptions
 
-	_lines: string[] = []
-	_after: RegExp
-	_before: RegExp
-	_start: number
-	_end: number
+	_content: string
 
-	constructor(opts: Partial<BlockInFileOptions> = {}) {
-		let { before, after } = opts
-		if (after && typeof(after) === "string") {
-			after = new RegExp(after)
+	constructor(options: Partial<BlockInFileOptions> = {}) {
+		this.options = options
+	}
+
+	async run(filePath: string) {
+		const [input, output, _before, _after, start, end, comment, name, diff, dos] = get(this.options, this.constructor.defaults || BlockInFile.defaults, "input", "output", "before", "after", "markerStart", "markerEnd", "comment", "name", "diff", "dos")
+		if (_before && _after) {
+			throw new Error("Cannot have both 'before' and 'after'")
 		}
-		if (before) {
-			if (after) {
-				throw new Error("Can only have 'after' or 'before', but have both")
+
+		// get the input block to insert
+		if (!this._input) {
+			const buffer = await readAll(await _input(input))
+			const decoder = new TextDecoder()
+			this._input = decoder.decode(buffer)
+		}
+
+		const before = typeof(_before) === "string" ? new RegExp(_before) : _before
+		const after = typeof(_after) === "string" ? new RegExp(_after) : _after
+		const match = before || after
+		const opener = `${comment} ${name} ${start}`
+		const closer = `${comment} ${name} ${end}`
+		const outputs = [] // output lines
+		const diffBuffer = diff ? [] : undefined
+
+		// read each line
+		const lines = readLines(await _input(filePath))
+		let done = false // have inserted input
+		let opened: number | undefined // where we found an existing block
+
+		if (before === true) {
+			outputs.push(opener, this._input, closer)
+		}
+		for await (const line of lines) {
+			console.log({line})
+			diffBuffer?.push(line)
+
+			if (!done && match?.test(line)) {
+				if (before) {
+					outputs.push(opener, this._input, closer, line)
+				} else {
+					outputs.push(line, opener, this._input, closer)
+				}
+				done = true
+				continue
 			}
-			if (typeof(before) === "string") {
-				before = new RegExp(before)
+
+			if (opened === undefined && line === opener) {
+				opened = outputs.length
+			} else if (opened && line === closer) {
+				if (!done && !before && !after) {
+					// replace the first block we find
+					outputs.push(opener, this._input, closer)
+					done = true
+				}
+				opened = undefined
+				continue
+			}
+
+			if (!opened) {
+				// copy in any line other than existing blocks
+				outputs.push(line)
 			}
 		}
-
-		Object.assign(this, opts, {
-			_after: after,
-			_before: before,
-		});
-	}
-
-	async _run() {
-		await _readLines()
-		if (this.diff) {
-			await _diff()
+		if (after === true || !done) {
+			outputs.push(opener, this._input, closer)
 		}
-		await _replace()
-		await _write()
-	}
 
-	async _readLines() {
-		const decoder = new TextDecoder();
-		for await (const chunk of Deno.stdin.readable) {
-			const text = decoder.decode(chunk);
-			// do something with the text
+		const outputText = outputs.join(dos ? "\r\n" : "\n")
+
+		// write
+		if (!output || output === "---") {
+			await Deno.writeTextFile(filePath, outputText)
+		} else if (output === "--") {
+			// do nothing
+		} else if (output === "-") {
+			console.log(outputText)
+		} else {
+			await Deno.writeTextFile(output, outputText)
 		}
-		const f=await Deno.open('./testdata/sample2.txt');
-		for await(const l of readLines(f)) {
-		  console.log('Processing:', l);
-			
-		}
-	}
 
-	async _replace() {
-	}
-
-	async _write() {
+		//if (this.diff) {
+		//	// stderr by default but configurable
+		//	await _diff()
+		//}
 	}
 }
 
 if (import.meta.main) {
 	//(await import("./main.ts")).run(Deno.env)
-	(await import("./cliffy.ts"))
+	//(await import("./cliffy.ts")).main()
+	import("./cliffy.ts").then(cliffy => cliffy.main())
 }
