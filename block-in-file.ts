@@ -22,17 +22,17 @@ async function _input(file: string) {
 }
 
 export interface BlockInFileOptions {
-		after?: string | RegExp | boolean
-		before?: string | RegExp | boolean
-		comment: string
-		debug?: boolean
-		diff?: string | boolean
-		dos?: boolean
-		input?: string
-		markerStart: string
-		markerEnd: string
-		name: string
-		output?: string
+	after?: string | RegExp | boolean
+	before?: string | RegExp | boolean
+	comment: string
+	debug?: boolean
+	diff?: string | boolean
+	dos?: boolean
+	input?: string
+	markerStart: string
+	markerEnd: string
+	name: string
+	output?: string
 }
 
 export let defaults: BlockInFileOptions = {
@@ -65,7 +65,20 @@ export class BlockInFile {
 
 	async run(filePath: string) {
 		// deno-lint-ignore no-explicit-any
-		const [input, output, _before, _after, start, end, comment, name, diff, dos] = get(this.options, (this.constructor as any).defaults || BlockInFile.defaults, "input", "output", "before", "after", "markerStart", "markerEnd", "comment", "name", "diff", "dos")
+		const [input, output, _before, _after, start, end, comment, name, diff, dos] = get(
+			this.options,
+			(this.constructor as any).defaults || BlockInFile.defaults,
+			"input",
+			"output",
+			"before",
+			"after",
+			"markerStart",
+			"markerEnd",
+			"comment",
+			"name",
+			"diff",
+			"dos",
+		)
 		if (_before && _after) {
 			throw new Error("Cannot have both 'before' and 'after'")
 		}
@@ -77,8 +90,8 @@ export class BlockInFile {
 			this._input = decoder.decode(buffer)
 		}
 
-		const before = typeof(_before) === "string" ? new RegExp(_before) : _before
-		const after = typeof(_after) === "string" ? new RegExp(_after) : _after
+		const before = typeof (_before) === "string" ? new RegExp(_before) : _before
+		const after = typeof (_after) === "string" ? new RegExp(_after) : _after
 		const match = before || after
 		const opener = `${comment} ${name} ${start}`
 		const closer = `${comment} ${name} ${end}`
@@ -150,5 +163,5 @@ export class BlockInFile {
 }
 
 if (import.meta.main) {
-	import("./cliffy.ts").then(cliffy => cliffy.main())
+	import("./cliffy.ts").then((cliffy) => cliffy.main())
 }

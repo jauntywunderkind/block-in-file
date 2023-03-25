@@ -1,5 +1,5 @@
 #!/usr/bin/env -S deno run --allow-read --allow-net --ext ts
-import { Command } from "https://deno.land/x/cliffy@v0.25.7/command/mod.ts";
+import { Command } from "https://deno.land/x/cliffy@v0.25.7/command/mod.ts"
 import { BlockInFile } from "./block-in-file.ts"
 
 export default async function main(args = Deno.args) {
@@ -16,7 +16,7 @@ export default async function main(args = Deno.args) {
 		.option("-D, --diff [output:string]", "Print diff")
 		.option("--dos", "Use dos line endings")
 		.option("-i, --input <input:string>", "Input file to read contents from, or - from stdout", { default: "-" })
-		.option("-o, --output <output:string>", "Output file, or - for stdout, or -- for no output, or --- for overwriting existing file", {default: "---"})
+		.option("-o, --output <output:string>", "Output file, or - for stdout, or -- for no output, or --- for overwriting existing file", { default: "---" })
 		.option("-b, --before [before:string]", "String or regex to insert before, or at beginning if no argument")
 		.option("-a, --after [after:string]", "String or regex to insert after, or at end if no argument")
 		.option("--multi", "Multi-line matching (not implemented)")
@@ -24,12 +24,12 @@ export default async function main(args = Deno.args) {
 		.arguments("<files:string>")
 		.action(async (options, ...files) => {
 			const bif = new BlockInFile(options)
-			await Promise.all(files.map(file => bif.run(file)))
+			await Promise.all(files.map((file) => bif.run(file)))
 		})
 		.parse(args)
 }
 export { main }
 
 if (import.meta.main) {
-  main()
+	main()
 }
