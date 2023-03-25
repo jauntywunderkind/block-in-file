@@ -1,6 +1,7 @@
 {
 	"tasks": {
-		"block-in-file": "deno run --allow-read --allow-write --allow-net block-in-file.ts"
+		"block-in-file": "deno run --allow-read --allow-write --allow-net block-in-file.ts",
+		"install": "deno install -f --allow-read --allow-write --allow-net block-in-file.ts"
 	},
 	"fmt": {
 		"options": {
