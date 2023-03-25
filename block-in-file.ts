@@ -9,8 +9,8 @@ function get<T>(source: Partial<T>, defaults: Partial<T>, ...keys: (keyof T)[]) 
 		return (o !== undefined ? o : defaults[key]) as any
 	}
 
-	var o = new Array(keys.length)
-	for (let i in keys) {
+	const o = new Array(keys.length)
+	for (const i in keys) {
 		o[i] = get(source, defaults, keys[i])
 	}
 	return o
@@ -46,6 +46,9 @@ export let defaults: BlockInFileOptions = {
 	markerEnd: "end",
 	name: "blockinfile",
 	output: undefined,
+}
+export function setDefaults(newDefaults: BlockInFileOptions) {
+	defaults = newDefaults
 }
 
 export class BlockInFile {
