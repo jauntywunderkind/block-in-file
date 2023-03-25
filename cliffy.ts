@@ -1,8 +1,10 @@
+
+
 import { Command, EnumType } from "https://deno.land/x/cliffy@v0.25.7/command/mod.ts";
 import { BlockInFile } from "./block-in-file.ts"
 
 export default async function main(args = Deno.args) {
-	await new Command()
+	return await new Command()
 		.name("blockinfile")
 		.version("0.1.0")
 		.description("Insert & update blocks of text in file")
@@ -28,3 +30,7 @@ export default async function main(args = Deno.args) {
 		.parse(args)
 }
 export { main }
+
+if (import.meta.main) {
+  main()
+}

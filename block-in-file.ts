@@ -1,5 +1,5 @@
-#!/usr/bin/env -S deno eval
-import { readLines } from "https://deno.land/std/io/mod.ts"
+#!/usr/bin/env -S deno run --allow-read --allow-net
+import { readLines } from "https://deno.land/std/io/read_lines.ts"
 import { readAll } from "https://deno.land/std/streams/read_all.ts"
 
 function get<T>(source: Partial<T>, defaults: Partial<T>, ...keys: (keyof T)[]) {
@@ -145,7 +145,5 @@ export class BlockInFile {
 }
 
 if (import.meta.main) {
-	//(await import("./main.ts")).run(Deno.env)
-	//(await import("./cliffy.ts")).main()
 	import("./cliffy.ts").then(cliffy => cliffy.main())
 }
