@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read --allow-net
+#!/usr/bin/env -S deno run --allow-read --allow-net --ext ts
 import { readLines } from "https://deno.land/std/io/read_lines.ts"
 import { readAll } from "https://deno.land/std/streams/read_all.ts"
 
