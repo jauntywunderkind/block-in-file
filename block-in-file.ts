@@ -6,7 +6,8 @@ function get<T>(source: Partial<T>, defaults: Partial<T>, ...keys: (keyof T)[]) 
 	if (keys.length === 1) {
 		const key = keys[0]
 		const o = source[key]
-		return (o !== undefined ? o : defaults[key]) as any
+		// deno-lint-ignore no-explicit-any
+		return (o !== undefined ? o : defaults?.[key]) as any
 	}
 
 	const o = new Array(keys.length)
@@ -63,6 +64,7 @@ export class BlockInFile {
 	}
 
 	async run(filePath: string) {
+		// deno-lint-ignore no-explicit-any
 		const [input, output, _before, _after, start, end, comment, name, diff, dos] = get(this.options, (this.constructor as any).defaults || BlockInFile.defaults, "input", "output", "before", "after", "markerStart", "markerEnd", "comment", "name", "diff", "dos")
 		if (_before && _after) {
 			throw new Error("Cannot have both 'before' and 'after'")
