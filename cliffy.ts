@@ -19,8 +19,9 @@ export default async function main(args = Deno.args) {
 		.option("-o, --output <output:string>", "Output file, or - for stdout, or -- for no output, or --- for overwriting existing file", { default: "---" })
 		.option("-b, --before [before:string]", "String or regex to insert before, or at beginning if no argument")
 		.option("-a, --after [after:string]", "String or regex to insert after, or at end if no argument")
-		.option("--multi", "Multi-line matching (not implemented)")
 		.option("--backup", "Backup file if changes (not implemented)")
+		.option("--last", "Place after last match instead of first (not implemented)")
+		.option("--multi", "Multi-line matching (not implemented)")
 		.arguments("<files:string>")
 		.action(async (options, ...files) => {
 			const bif = new BlockInFile(options)
