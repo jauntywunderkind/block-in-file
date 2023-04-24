@@ -2,7 +2,8 @@
 
 > insert/update/remove a block of multi-line text surrounded by customizable marker lines
 
-A standalone re-interpretation of [Ansible's blockinfile](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/blockinfile_module.html). Powerful technique to programmatically ongoingly update just one part of a file, leaving the rest of the file available for free-form editing.
+A standalone re-interpretation of [Ansible's blockinfile](https://docs.ansible.com/ansible/latest/collections/ansible/builtin/blockinfile_module.html). Powerful
+technique to programmatically ongoingly update just one part of a file, leaving the rest of the file available for free-form editing.
 
 # Installation
 
@@ -80,5 +81,5 @@ echo use before or after regexp to place blocks | block-in-file sample.txt --bef
     -b, --before    [before]   - String or regex to insert before, or at beginning if no argument                                   
     -a, --after     [after]    - String or regex to insert after, or at end if no argument                                          
     --multi                    - Multi-line matching (not implemented)                                                              
-    --backup                   - Backup file if changes (not implemented)                                                           
+    --backup                   - Backup file if changes (not implemented)
 ```
