@@ -123,48 +123,68 @@ export class BlockInFile {
 		const lines = readLines(await _input(filePath, createOpt(create, "input")))
 		let done = false // have inserted input
 		let opened: number | undefined // where we found an existing block
+		let matched = -1 // where we found a match
+		let i = -1
 
-		if (before === true) {
-			outputs.push(opener, this._input, closer)
-			done = true
-		}
+		//if (before === true) {
+		//	outputs.push(opener, this._input, closer)
+		//	done = true
+		//}
 		for await (const line of lines) {
+			const isOpen = opened !== undefined
+			i++
 			diffBuffer?.push(line)
 
-			if (!done && match?.test?.(line)) {
-				if (before) {
-					outputs.push(opener, this._input, closer, line)
-				} else {
-					outputs.push(line, opener, this._input, closer)
-				}
-				done = true
-				continue
-			}
-
-			if (opened === undefined && line === opener) {
+			// open block
+			if (!isOpen && line === opener) {
 				opened = outputs.length
-			} else if (opened && line === closer) {
-				if (!done && !before && !after) {
-					// replace the first block we find
-					outputs.push(opener, this._input, closer)
-					done = true
+				// look for close block
+			} else if (isOpen) {
+				if (line !== closer) {
+					// still looking for close
+					continue
 				}
-				opened = undefined
-				continue
-			}
 
-			if (opened === undefined) {
-				// copy in any line other than existing blocks
+				// close
+				opened = undefined
+
+				if (done) {
+					// we already printed our results once, skip
+					continue
+				}
+
+				// replace the first block we find
+				// eliminate future blocks
+				outputs.push(opener, this._input, closer)
+				done = true
+			} else {
+				// save line
 				outputs.push(line)
+
+				// look for first match if not done
+				if (!done && matched === -1 && match?.test?.(line)) {
+					matched = i
+				}
 			}
 		}
-		if (after === true || !done) {
+		// was left uncompleted, terminate
+		if (opened !== undefined) {
 			outputs.push(opener, this._input, closer)
 			done = true
 		}
+		// no existing blocks but match found
+		if (!done) {
+			if (matched === -1) {
+				// insert at end
+				matched = i
+			}
+			outputs.splice(matched + (after ? 1 : 0), 0, opener, this._input, closer)
+		}
 
-		// end of line
-		outputs.push("")
+		if (outputs[outputs.length] !== "") {
+			// end of line
+			outputs.push("")
+		}
 
 		const outputText = outputs.join(dos ? "\r\n" : "\n")
 
