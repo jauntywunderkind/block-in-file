@@ -153,7 +153,7 @@ export class BlockInFile {
 				continue
 			}
 
-			if (!opened) {
+			if (opened === undefined) {
 				// copy in any line other than existing blocks
 				outputs.push(line)
 			}
