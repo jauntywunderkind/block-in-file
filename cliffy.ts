@@ -2,7 +2,7 @@
 import { Command, EnumType } from "https://deno.land/x/cliffy@v0.25.7/command/mod.ts"
 import { BlockInFile } from "./block-in-file.ts"
 
-const createArg = new EnumType(["input", "block", true, false])
+const createArg = new EnumType(["file", "block", true, false])
 
 export default async function main(args = Deno.args) {
 	return await new Command()

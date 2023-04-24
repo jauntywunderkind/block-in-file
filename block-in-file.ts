@@ -17,7 +17,7 @@ function get<T>(source: Partial<T>, defaults: Partial<T>, ...keys: (keyof T)[]) 
 	return o
 }
 
-type CreateArg = boolean | 0 | 1 | "input" | "block"
+type CreateArg = boolean | 0 | 1 | "file" | "block"
 
 interface InputOptions {
 	create?: boolean
@@ -120,7 +120,7 @@ export class BlockInFile {
 		const diffBuffer = diff ? new Array<string>() : undefined
 
 		// read each line
-		const lines = readLines(await _input(filePath, createOpt(create, "input")))
+		const lines = readLines(await _input(filePath, createOpt(create, "file")))
 		let done = false // have inserted input
 		let opened: number | undefined // where we found an existing block
 		let matched = -1 // where we found a match
