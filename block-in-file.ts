@@ -163,6 +163,9 @@ export class BlockInFile {
 			done = true
 		}
 
+		// end of line
+		outputs.push("")
+
 		const outputText = outputs.join(dos ? "\r\n" : "\n")
 
 		// write
