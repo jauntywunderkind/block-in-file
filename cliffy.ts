@@ -1,6 +1,8 @@
 #!/usr/bin/env -S deno run --allow-read --allow-net --ext ts
-import { Command } from "https://deno.land/x/cliffy@v0.25.7/command/mod.ts"
+import { Command, EnumType } from "https://deno.land/x/cliffy@v0.25.7/command/mod.ts"
 import { BlockInFile } from "./block-in-file.ts"
+
+const createArg = new EnumType(["input", "block", true, false])
 
 export default async function main(args = Deno.args) {
 	return await new Command()
@@ -8,6 +10,7 @@ export default async function main(args = Deno.args) {
 		.version("0.1.0")
 		.description("Insert & update blocks of text in file")
 		.env("DEBUG=<debug:boolean>", "Enable debug output.")
+		.type("createArg", createArg)
 		.option("-d, --debug", "Enable debug output.")
 		.option("-n, --name <name:string>", "Name for block", { default: "blockinfile" })
 		.option("-c, --comment <comment:string>", "Comment string for marker", { default: "#" })
@@ -19,6 +22,7 @@ export default async function main(args = Deno.args) {
 		.option("-o, --output <output:string>", "Output file, or - for stdout, or -- for no output, or --- for overwriting existing file", { default: "---" })
 		.option("-b, --before [before:string]", "String or regex to insert before, or at beginning if no argument")
 		.option("-a, --after [after:string]", "String or regex to insert after, or at end if no argument")
+		.option("-C, --create [create:createArg]", "Create ")
 		.option("--backup", "Backup file if changes (not implemented)")
 		.option("--last", "Place after last match instead of first (not implemented)")
 		.option("--multi", "Multi-line matching (not implemented)")

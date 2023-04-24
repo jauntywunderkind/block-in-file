@@ -43,6 +43,7 @@ export interface BlockInFileOptions {
 	after?: string | RegExp | boolean
 	before?: string | RegExp | boolean
 	comment: string
+	create?: CreateArg
 	debug?: boolean
 	diff?: string | boolean
 	dos?: boolean
@@ -57,6 +58,7 @@ export let defaults: BlockInFileOptions = {
 	after: undefined,
 	before: undefined,
 	comment: "#",
+	create: false,
 	debug: false,
 	diff: undefined,
 	dos: false,
@@ -83,7 +85,7 @@ export class BlockInFile {
 
 	async run(filePath: string) {
 		// deno-lint-ignore no-explicit-any
-		const [input, output, _before, _after, start, end, comment, name, diff, dos] = get(
+		const [input, output, _before, _after, start, end, comment, create, name, diff, dos] = get(
 			this.options,
 			(this.constructor as any).defaults || BlockInFile.defaults,
 			"input",
@@ -93,6 +95,7 @@ export class BlockInFile {
 			"markerStart",
 			"markerEnd",
 			"comment",
+			"create",
 			"name",
 			"diff",
 			"dos",
@@ -103,7 +106,7 @@ export class BlockInFile {
 
 		// get the input block to insert
 		if (!this._input) {
-			const buffer = await readAll(await _input(input))
+			const buffer = await readAll(await _input(input, createOpt(create, "block")))
 			const decoder = new TextDecoder()
 			this._input = decoder.decode(buffer)
 		}
@@ -117,7 +120,7 @@ export class BlockInFile {
 		const diffBuffer = diff ? new Array<string>() : undefined
 
 		// read each line
-		const lines = readLines(await _input(filePath))
+		const lines = readLines(await _input(filePath, createOpt(create, "input")))
 		let done = false // have inserted input
 		let opened: number | undefined // where we found an existing block
 
