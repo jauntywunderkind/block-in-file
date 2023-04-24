@@ -17,8 +17,26 @@ function get<T>(source: Partial<T>, defaults: Partial<T>, ...keys: (keyof T)[]) 
 	return o
 }
 
-async function _input(file: string) {
-	return file === "-" || file === undefined ? Deno.stdin : await Deno.open(file, { read: true })
+type CreateArg = boolean | 0 | 1 | "input" | "block"
+
+interface InputOptions {
+	create?: boolean
+}
+
+function createOpt(value: CreateArg, target: CreateArg): InputOptions | undefined {
+	return value === 1 || value === true || value === target ? { create: true } : undefined
+}
+
+async function _input(file: string, opts?: InputOptions) {
+	try {
+		return file === "-" || file === undefined ? Deno.stdin : await Deno.open(file, { read: true })
+	} catch (ex) {
+		if (opts?.create) {
+			return Deno.open("/dev/null", { read: true })
+		}
+
+		throw ex
+	}
 }
 
 export interface BlockInFileOptions {
