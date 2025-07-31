@@ -26,10 +26,22 @@ export default async function main(args = Deno.args) {
 		.option("--backup", "Backup file if changes (not implemented)")
 		.option("--last", "Place after last match instead of first (not implemented)")
 		.option("--multi", "Multi-line matching (not implemented)")
-		.arguments("<file_or_-:file>")
+		.arguments("[file_or_-:file]")
 		.action(async (options, ...files) => {
+			if (files.length === 0) {
+				if (/^--?-?$/.test(options.output || "")) {
+					throw new Error("Need output of some kind")
+				}
+				console.log({options})
+				files = [options.output]
+			}
 			const bif = new BlockInFile(options)
-			await Promise.all(files.map((file) => bif.run(file)))
+			const runs = files.map(function doRun(file) {
+				console.log({file})
+				return bif.run(file)
+			})
+			await Promise.all(runs)
+			//await Promise.all(files.map((file) => bif.run(file)))
 		})
 		.parse(args)
 }
