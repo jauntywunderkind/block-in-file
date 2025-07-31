@@ -1,6 +1,7 @@
 #!/usr/bin/env -S deno run --allow-read --allow-net --ext ts
-import { readLines } from "https://deno.land/std/io/read_lines.ts"
-import { readAll } from "https://deno.land/std/streams/read_all.ts"
+import { TextLineStream } from "jsr:@std/streams/text-line-stream";
+import { readAll } from "jsr:@std/io/read-all";
+
 
 function get<T>(source: Partial<T>, defaults: Partial<T>, ...keys: (keyof T)[]) {
 	if (keys.length === 1) {
@@ -120,7 +121,9 @@ export class BlockInFile {
 		const diffBuffer = diff ? new Array<string>() : undefined
 
 		// read each line
-		const lines = readLines(await _input(filePath, createOpt(create, "file")))
+		const inputStream = await _input(filePath, createOpt(create, "file"))
+		const textStream = inputStream.readable.pipeThrough(new TextDecoderStream())
+		const lines = textStream.pipeThrough(new TextLineStream())
 		let done = false // have inserted input
 		let opened: number | undefined // where we found an existing block
 		let matched = -1 // where we found a match
