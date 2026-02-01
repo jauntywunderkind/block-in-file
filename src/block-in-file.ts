@@ -2,7 +2,7 @@ import type { BlockInFileOptions } from "./types.ts"
 import { defaultOptions } from "./defaults.ts"
 import { createOpt, get, openInput, readInput } from "./input.ts"
 import { parseAndInsertBlock } from "./block-parser.ts"
-import { formatOutputs, writeOutput } from "./output.ts"
+import { formatOutputs, writeDiff, writeOutput } from "./output.ts"
 
 export class BlockInFile {
 	static defaults = defaultOptions
@@ -16,7 +16,7 @@ export class BlockInFile {
 
 	async run(filePath: string) {
 		// deno-lint-ignore no-explicit-any
-		const [input, output, _before, _after, start, end, comment, create, name, dos] = get(
+		const [input, output, _before, _after, start, end, comment, create, name, dos, diff] = get(
 			this.options,
 			(this.constructor as any).defaults || BlockInFile.defaults,
 			"input",
@@ -29,6 +29,7 @@ export class BlockInFile {
 			"create",
 			"name",
 			"dos",
+			"diff",
 		)
 
 		if (_before && _after) {
@@ -44,6 +45,15 @@ export class BlockInFile {
 		const opener = `${comment} ${name} ${start}`
 		const closer = `${comment} ${name} ${end}`
 
+		let originalContent = ""
+		if (diff) {
+			try {
+				originalContent = await Deno.readTextFile(filePath)
+			} catch {
+				// file doesn't exist yet, original is empty
+			}
+		}
+
 		const inputStream = await openInput(filePath, createOpt(create, "file"))
 		const { outputs } = await parseAndInsertBlock(inputStream, {
 			opener,
@@ -54,6 +64,11 @@ export class BlockInFile {
 		})
 
 		const outputText = formatOutputs(outputs, dos)
-		await writeOutput(outputText, output, filePath)
+
+		if (diff) {
+			await writeDiff(diff, originalContent, outputText, filePath)
+		} else {
+			await writeOutput(outputText, output, filePath)
+		}
 	}
 }

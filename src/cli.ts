@@ -29,10 +29,14 @@ export default async function main(args = Deno.args) {
 		.arguments("[file_or_-:file]")
 		.action(async (options, ...files) => {
 			if (files.length === 0) {
-				if (/^--?-?$/.test(options.output || "")) {
-					throw new Error("Need output of some kind")
+				if (!options.diff && /^--?-?$/.test(options.output || "")) {
+					throw new Error("Need file argument or output target")
 				}
-				files = [options.output]
+				if (!options.diff) {
+					files = [options.output]
+				} else {
+					throw new Error("Need file argument for diff mode")
+				}
 			}
 			const bif = new BlockInFile(options)
 			const runs = files.map((file) => bif.run(file!))

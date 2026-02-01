@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { formatOutputs } from "../output.ts"
+import { formatOutputs, generateDiff } from "../output.ts"
 
 describe("output utilities", () => {
 	describe("formatOutputs", () => {
@@ -44,6 +44,39 @@ describe("output utilities", () => {
 			const outputs = ["line1", "", "line3"]
 			const result = formatOutputs(outputs, false)
 			expect(result).toBe("line1\n\nline3\n")
+		})
+	})
+
+	describe("generateDiff", () => {
+		it("shows no changes for identical content", () => {
+			const content = "line1\nline2\n"
+			const diff = generateDiff(content, content, "test.txt")
+			expect(diff).toContain("--- test.txt")
+			expect(diff).toContain("+++ test.txt")
+			expect(diff).not.toContain("-line")
+			expect(diff).not.toContain("+line")
+		})
+
+		it("shows added lines", () => {
+			const original = "line1\nline2\n"
+			const modified = "line1\nNEW\nline2\n"
+			const diff = generateDiff(original, modified, "test.txt")
+			expect(diff).toContain("+NEW")
+		})
+
+		it("shows removed lines", () => {
+			const original = "line1\nOLD\nline2\n"
+			const modified = "line1\nline2\n"
+			const diff = generateDiff(original, modified, "test.txt")
+			expect(diff).toContain("-OLD")
+		})
+
+		it("shows changed lines", () => {
+			const original = "line1\nOLD\nline2\n"
+			const modified = "line1\nNEW\nline2\n"
+			const diff = generateDiff(original, modified, "test.txt")
+			expect(diff).toContain("-OLD")
+			expect(diff).toContain("+NEW")
 		})
 	})
 })
