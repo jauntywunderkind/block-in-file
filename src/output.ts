@@ -1,5 +1,5 @@
 export function formatOutputs(outputs: string[], dos: boolean): string {
-	if (outputs[outputs.length - 1] !== "") {
+	if (outputs.length === 0 || outputs[outputs.length - 1] !== "") {
 		outputs.push("")
 	}
 	return outputs.join(dos ? "\r\n" : "\n")
