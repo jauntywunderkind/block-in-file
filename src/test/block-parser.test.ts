@@ -24,6 +24,11 @@ function parseLines(lines: string[], opts: ParseOptions): ParseResult {
 	let matched = -1
 	let i = -1
 
+	if (before === true) {
+		outputs.push(opener, inputBlock, closer)
+		done = true
+	}
+
 	for (const line of lines) {
 		const isOpen = opened !== undefined
 		i++
@@ -155,6 +160,20 @@ describe("block-parser", () => {
 	})
 
 	describe("before/after matching", () => {
+		it("inserts at beginning when before=true", () => {
+			const result = parseLines(["line1", "line2"], {
+				...defaultOpts,
+				before: true,
+			})
+			expect(result.outputs).toEqual([
+				"# blockinfile start",
+				"NEW CONTENT",
+				"# blockinfile end",
+				"line1",
+				"line2",
+			])
+		})
+
 		it("inserts before matching line", () => {
 			const result = parseLines(["line1", "TARGET", "line3"], {
 				...defaultOpts,

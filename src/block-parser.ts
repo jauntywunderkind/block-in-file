@@ -25,6 +25,11 @@ export async function parseAndInsertBlock(
 	let matched = -1
 	let i = -1
 
+	if (before === true) {
+		outputs.push(opener, inputBlock, closer)
+		done = true
+	}
+
 	for await (const line of lines) {
 		const isOpen = opened !== undefined
 		i++
