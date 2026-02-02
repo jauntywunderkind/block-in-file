@@ -88,6 +88,7 @@ const command = define<{
         output: configExt.output,
         dos: configExt.dos,
         backupOptions: configExt.backupOptions,
+        tempExt: configExt.tempExt,
         tempExtAtomic: configExt.tempExtAtomic,
         tempExtPrevalidate: configExt.tempExtPrevalidate,
       };

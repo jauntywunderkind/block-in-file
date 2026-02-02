@@ -28,6 +28,7 @@ export interface ConfigExtension {
   validate?: string;
   mode?: ModeArg;
   force?: boolean;
+  tempExt?: string;
   tempExtAtomic?: string;
   tempExtPrevalidate?: string;
 }
@@ -125,6 +126,10 @@ export default function config() {
         short: "f",
         description: "Force mode - skip validation failures",
       });
+      ctx.addGlobalOption("temp-ext", {
+        type: "string",
+        description: "Generic temp file extension (fallback for atomic/prevalidate)",
+      });
       ctx.addGlobalOption("temp-ext-atomic", {
         type: "string",
         description: "Extension for atomic write temp files (default: .atomic)",
@@ -189,9 +194,9 @@ export default function config() {
         validate: ctx.values.validate as string | undefined,
         mode,
         force: ctx.values.force as boolean | undefined,
-        tempExtAtomic: (ctx.values["temp-ext-atomic"] as string | undefined) || ".atomic",
-        tempExtPrevalidate:
-          (ctx.values["temp-ext-prevalidate"] as string | undefined) || ".prevalidate",
+        tempExt: ctx.values["temp-ext"] as string | undefined,
+        tempExtAtomic: ctx.values["temp-ext-atomic"] as string | undefined,
+        tempExtPrevalidate: ctx.values["temp-ext-prevalidate"] as string | undefined,
       };
     },
   });

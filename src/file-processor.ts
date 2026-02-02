@@ -29,6 +29,7 @@ export interface ProcessContext {
   output: string;
   dos: boolean;
   backupOptions?: BackupOptions;
+  tempExt?: string;
   tempExtAtomic?: string;
   tempExtPrevalidate?: string;
 }
@@ -60,6 +61,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     dos,
     backupOptions,
     create,
+    tempExt,
     tempExtAtomic,
     tempExtPrevalidate,
   } = ctx;
@@ -119,24 +121,23 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     }
   }
 
-  const atomicExt = tempExtAtomic || ".atomic";
-  const tempFile = `${file}${atomicExt}`;
-
   if (output === "---" || output === "--") {
-    await io.writeFile(tempFile, outputText);
+    let tempFile: string;
 
     if (validateCmd && !force) {
-      const prevalidateExt = tempExtPrevalidate || ".prevalidate";
-      const prevalidateFile = `${file}${prevalidateExt}`;
-      await io.writeFile(prevalidateFile, outputText);
+      const ext = tempExtPrevalidate || tempExt || ".prevalidate";
+      tempFile = `${file}${ext}`;
+      await io.writeFile(tempFile, outputText);
       try {
-        await runValidation(prevalidateFile, validateCmd);
+        await runValidation(tempFile, validateCmd);
       } catch (err) {
-        await io.deleteFile(prevalidateFile);
         await io.deleteFile(tempFile);
         throw err;
       }
-      await io.deleteFile(prevalidateFile);
+    } else {
+      const ext = tempExtAtomic || tempExt || ".atomic";
+      tempFile = `${file}${ext}`;
+      await io.writeFile(tempFile, outputText);
     }
 
     await io.rename(tempFile, file);
