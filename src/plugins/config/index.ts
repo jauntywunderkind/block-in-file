@@ -69,10 +69,10 @@ export default function config() {
       });
     },
     extension: (ctx): ConfigExtension => {
-      const createValue = ctx.values.create;
+      const createValue = ctx.values.create as string | undefined;
       let create: CreateArg | undefined = undefined;
       if (createValue === "file" || createValue === "block") {
-        create = createValue;
+        create = createValue as CreateArg;
       } else if (createValue === "true" || createValue === "1") {
         create = true;
       } else if (createValue === "false" || createValue === "0") {
@@ -80,18 +80,18 @@ export default function config() {
       }
 
       return {
-        name: ctx.values.name,
-        comment: ctx.values.comment,
-        markerStart: ctx.values["marker-start"],
-        markerEnd: ctx.values["marker-end"],
-        dos: ctx.values.dos,
-        debug: ctx.values.debug,
-        input: ctx.values.input,
-        output: ctx.values.output,
+        name: ctx.values.name as string,
+        comment: ctx.values.comment as string,
+        markerStart: ctx.values["marker-start"] as string,
+        markerEnd: ctx.values["marker-end"] as string,
+        dos: ctx.values.dos as boolean,
+        debug: ctx.values.debug as boolean,
+        input: ctx.values.input as string,
+        output: ctx.values.output as string,
         create,
-        before: ctx.values.before,
-        after: ctx.values.after,
-        diff: ctx.values.diff,
+        before: ctx.values.before as string | undefined,
+        after: ctx.values.after as string | undefined,
+        diff: ctx.values.diff as string | undefined,
       };
     },
   });

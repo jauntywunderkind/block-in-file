@@ -4,7 +4,6 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": ["ESNext", "DOM"],
-    "types": ["node", "@types/node"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
