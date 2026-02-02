@@ -35,5 +35,5 @@ export function detectBlockState(
   if (wouldChange) {
     return "updated";
   }
-  return "exists";
+  return "unchanged";
 }

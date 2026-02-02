@@ -7,6 +7,7 @@ import { parseAndInsertBlock } from "./block-parser.js";
 import { formatOutputs } from "./output.js";
 import { detectBlockState, shouldSkipForMode } from "./mode-handler.js";
 import { runValidation } from "./validation.ts";
+import { detectConflicts } from "./conflict-detection.ts";
 
 export interface ProcessContext {
   file: string;
@@ -63,6 +64,13 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     logger.debug(`Processing file: ${file}`);
   }
 
+  const conflictResult = detectConflicts(fileContent, opener, closer, logger);
+  if (conflictResult.hasConflicts) {
+    throw new Error(
+      `File conflicts detected:\n${conflictResult.conflicts.map((c) => c.message).join("\n")}`,
+    );
+  }
+
   const blockExists = fileContent.includes(opener);
   const wouldChange = blockWouldChange(fileContent, inputBlock, opener, closer);
   const state = detectBlockState(ctx.fileExists, blockExists, wouldChange);
@@ -77,7 +85,9 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     }
   }
 
-  if (before === true || (create && !ctx.fileExists)) {
+  if (create && !ctx.fileExists) {
+    await io.writeFile(file, "");
+  } else if (before === true) {
     await io.writeFile(file, "");
   }
 

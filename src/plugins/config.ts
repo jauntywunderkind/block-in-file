@@ -116,7 +116,7 @@ export default function config() {
       ctx.addGlobalOption("mode", {
         type: "string",
         description:
-          "Operation mode: ensure (idempotent), only (create if missing), none (legacy, no guarantees)",
+          "Operation mode: ensure (idempotent - skip if unchanged), only (create if missing - skip if exists), none (legacy - always update)",
       });
       ctx.addGlobalOption("force", {
         type: "boolean",
@@ -154,7 +154,7 @@ export default function config() {
       }
 
       const modeValue = ctx.values.mode as string | undefined;
-      let mode: ModeArg | undefined = undefined;
+      let mode: ModeArg = "none";
       if (modeValue === "ensure" || modeValue === "only" || modeValue === "none") {
         mode = modeValue as ModeArg;
       }
