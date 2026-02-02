@@ -25,45 +25,53 @@ src/
 ## Component Breakdown
 
 ### `types.ts`
+
 - `BlockInFileOptions` interface
 - `CreateArg` type
 - `InputOptions` interface
 - All shared types
 
 ### `input.ts`
+
 - `get<T>()` utility function
 - `createOpt()` function
 - `_input()` function
 - Stream handling utilities
 
 ### `block-parser.ts`
+
 - Block detection logic (finding opener/closer)
 - Insertion position calculation (before/after matching)
 - Line-by-line processing state machine
 - Returns structured result: `{ outputs: string[], matched: number, opened?: number }`
 
 ### `output.ts`
+
 - `formatOutputs()` - Join lines with appropriate line endings
 - `writeOutput()` - Handle different output modes (file, stdout, none)
 - Diff generation (when implemented)
 
 ### `defaults.ts`
+
 - Immutable default configuration object
 - `getDefaultOptions()` function
 - No mutable exports
 
 ### `block-in-file.ts`
+
 - Main `BlockInFile` class
 - `run()` method that orchestrates components
 - Minimal logic, delegates to specialized modules
 
 ### `cli.ts`
+
 - All Cliffy/CLI logic
 - Argument parsing
 - Environment variable handling
 - Renamed from `cliffy.ts` for clarity
 
 ### `index.ts`
+
 - Public API exports
 - Re-exports for convenience
 
@@ -83,6 +91,7 @@ src/
 ## Testing Strategy
 
 After restructuring:
+
 - Unit test `block-parser.ts` with mock inputs
 - Unit test `output.ts` with various output modes
 - Unit test `input.ts` file opening scenarios

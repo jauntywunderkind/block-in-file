@@ -88,7 +88,13 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@gunshi/plugin@~0.27.5",
+        "npm:@typescript/native-preview@^7.0.0-dev.20260201.1",
         "npm:@vitest/coverage-v8@^4.0.18",
+        "npm:gunshi@~0.27.5",
+        "npm:oxfmt@0.27",
+        "npm:oxlint@^1.42.0",
+        "npm:tsx@^4.21.0",
         "npm:vitest@^4.0.18"
       ]
     }

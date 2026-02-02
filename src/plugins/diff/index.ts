@@ -1,29 +1,8 @@
+import { plugin } from "gunshi/plugin";
 import * as fs from "node:fs/promises";
+import { pluginId, type DiffExtension } from "./types.js";
 
-export function formatOutputs(outputs: string[], dos: boolean): string {
-  if (outputs.length === 0 || outputs[outputs.length - 1] !== "") {
-    outputs.push("");
-  }
-  return outputs.join(dos ? "\r\n" : "\n");
-}
-
-export async function writeOutput(
-  outputText: string,
-  output: string | undefined,
-  filePath: string,
-): Promise<void> {
-  if (!output || output === "---") {
-    await fs.writeFile(filePath, outputText, "utf-8");
-  } else if (output === "--") {
-    // no output
-  } else if (output === "-") {
-    console.log(outputText);
-  } else {
-    await fs.writeFile(output, outputText, "utf-8");
-  }
-}
-
-export function generateDiff(original: string, modified: string, filePath: string): string {
+function generateDiff(original: string, modified: string, filePath: string): string {
   const originalLines = original.split("\n");
   const modifiedLines = modified.split("\n");
   const output: string[] = [];
@@ -89,7 +68,7 @@ export function generateDiff(original: string, modified: string, filePath: strin
   return output.join("\n");
 }
 
-export async function writeDiff(
+async function writeDiff(
   diff: string | boolean | undefined,
   originalContent: string,
   newContent: string,
@@ -104,4 +83,15 @@ export async function writeDiff(
   } else if (typeof diff === "string") {
     await fs.writeFile(diff, diffText, "utf-8");
   }
+}
+
+export default function diff() {
+  return plugin<{}, typeof pluginId, [], DiffExtension>({
+    id: pluginId,
+    name: "Diff Plugin",
+    extension: (): DiffExtension => ({
+      generateDiff,
+      writeDiff,
+    }),
+  });
 }

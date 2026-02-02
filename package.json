@@ -2,18 +2,34 @@
   "name": "block-in-file",
   "version": "1.0.0",
   "description": "Insert & update blocks of text in files",
+  "keywords": [
+    "block",
+    "file",
+    "insert",
+    "text"
+  ],
+  "license": "ISC",
+  "author": "",
+  "bin": {
+    "block-in-file": "./block-in-file.ts"
+  },
   "type": "module",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
-  "keywords": ["block", "file", "insert", "text"],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.28.2",
+  "dependencies": {
+    "@gunshi/plugin": "^0.27.5",
+    "gunshi": "^0.27.5"
+  },
   "devDependencies": {
+    "@typescript/native-preview": "^7.0.0-dev.20260201.1",
     "@vitest/coverage-v8": "^4.0.18",
+    "oxfmt": "^0.27.0",
+    "oxlint": "^1.42.0",
+    "tsx": "^4.21.0",
     "vitest": "^4.0.18"
-  }
+  },
+  "packageManager": "pnpm@10.28.2"
 }

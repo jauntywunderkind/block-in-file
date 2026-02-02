@@ -1,22 +1,22 @@
-import type { BlockInFileOptions } from "./types.ts"
+import type { BlockInFileOptions } from "./types.ts";
 
 const defaultOptions: Readonly<BlockInFileOptions> = Object.freeze({
-	after: undefined,
-	before: undefined,
-	comment: "#",
-	create: false,
-	debug: false,
-	diff: undefined,
-	dos: false,
-	input: undefined,
-	markerStart: "start",
-	markerEnd: "end",
-	name: "blockinfile",
-	output: undefined,
-})
+  after: undefined,
+  before: undefined,
+  comment: "#",
+  create: false,
+  debug: false,
+  diff: undefined,
+  dos: false,
+  input: undefined,
+  markerStart: "start",
+  markerEnd: "end",
+  name: "blockinfile",
+  output: undefined,
+});
 
 export function getDefaultOptions(): BlockInFileOptions {
-	return { ...defaultOptions }
+  return { ...defaultOptions };
 }
 
-export { defaultOptions }
+export { defaultOptions };
