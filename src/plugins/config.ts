@@ -1,9 +1,11 @@
 import { plugin } from "gunshi/plugin";
+import { parseBackupOption, type BackupOptions } from "../backup.js";
 
 export const pluginId = "blockinfile:config" as const;
 export type PluginId = typeof pluginId;
 
 export type CreateArg = boolean | "file" | "block";
+export type StateOnFailMode = "iterate" | "fail" | "overwrite";
 
 export interface ConfigExtension {
   name: string;
@@ -18,6 +20,10 @@ export interface ConfigExtension {
   before?: string;
   after?: string;
   diff?: string;
+  backup?: string;
+  backupDir?: string;
+  stateOnFail?: StateOnFailMode;
+  backupOptions?: BackupOptions;
 }
 
 export default function config() {
@@ -84,6 +90,19 @@ export default function config() {
         short: "D",
         description: "Print diff (optional output file path)",
       });
+      ctx.addGlobalOption("backup", {
+        type: "string",
+        short: "B",
+        description: "Create backup with suffix pattern (e.g., '.{date}.backup', '.bak')",
+      });
+      ctx.addGlobalOption("backup-dir", {
+        type: "string",
+        description: "Directory to store backup files",
+      });
+      ctx.addGlobalOption("state-on-fail", {
+        type: "string",
+        description: "Behavior when backup fails: iterate (add .1 .2), fail, overwrite",
+      });
     },
     extension: (ctx): ConfigExtension => {
       const createValue = ctx.values.create as string | undefined;
@@ -94,6 +113,24 @@ export default function config() {
         create = true;
       } else if (createValue === "false" || createValue === "0") {
         create = false;
+      }
+
+      const backupValue = ctx.values.backup as string | undefined;
+      const backupOptions = parseBackupOption(backupValue);
+
+      if (ctx.values["backup-dir"]) {
+        backupOptions.backupDir = ctx.values["backup-dir"] as string;
+      }
+
+      const stateOnFailValue = ctx.values["state-on-fail"] as string | undefined;
+      let stateOnFail: StateOnFailMode | undefined = undefined;
+      if (
+        stateOnFailValue === "iterate" ||
+        stateOnFailValue === "fail" ||
+        stateOnFailValue === "overwrite"
+      ) {
+        stateOnFail = stateOnFailValue as StateOnFailMode;
+        backupOptions.stateOnFail = stateOnFail;
       }
 
       return {
@@ -109,6 +146,10 @@ export default function config() {
         before: ctx.values.before as string | undefined,
         after: ctx.values.after as string | undefined,
         diff: ctx.values.diff as string | undefined,
+        backup: backupValue,
+        backupDir: ctx.values["backup-dir"] as string | undefined,
+        stateOnFail,
+        backupOptions,
       };
     },
   });

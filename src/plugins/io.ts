@@ -2,6 +2,7 @@ import { plugin } from "gunshi/plugin";
 import * as fs from "node:fs/promises";
 import * as readline from "node:readline";
 import { stdin as input, stdout as output } from "node:process";
+import { performBackup, type BackupOptions } from "../backup.js";
 
 export const pluginId = "blockinfile:io" as const;
 export type PluginId = typeof pluginId;
@@ -11,6 +12,7 @@ export interface IOExtension {
   writeFile: (path: string, content: string) => Promise<void>;
   readStdin: () => Promise<string>;
   fileExists: (path: string) => Promise<boolean>;
+  backupFile: (path: string, options: BackupOptions, content?: string) => Promise<string[]>;
 }
 
 const readStdin = async (): Promise<string> => {
@@ -53,6 +55,9 @@ export default function io() {
         } catch {
           return false;
         }
+      },
+      backupFile: async (path: string, options: BackupOptions, content?: string) => {
+        return await performBackup(path, options, content);
       },
     }),
   });

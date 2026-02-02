@@ -86,6 +86,13 @@ const command = define<{
       const outputText = formatOutputs(outputs, configExt.dos);
       logger.debug(`Output text length: ${outputText.length}`);
 
+      if (configExt.backupOptions?.enabled && configExt.output === "---") {
+        const backups = await io.backupFile(file, configExt.backupOptions, fileContent);
+        if (backups.length > 0) {
+          logger.debug(`Created backups: ${backups.join(", ")}`);
+        }
+      }
+
       if (configExt.diff) {
         await diffExt.writeDiff(configExt.diff, originalContent, outputText, file);
       } else if (configExt.output === "---") {
