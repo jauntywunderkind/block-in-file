@@ -31,6 +31,7 @@ export interface ConfigExtension {
   tempExt?: string;
   tempExtAtomic?: string;
   tempExtPrevalidate?: string;
+  appendNewline?: boolean;
 }
 
 export default function config() {
@@ -138,6 +139,10 @@ export default function config() {
         type: "string",
         description: "Extension for validation temp files (default: .prevalidate)",
       });
+      ctx.addGlobalOption("append-newline", {
+        type: "boolean",
+        description: "Append blank line after block",
+      });
     },
     extension: (ctx): ConfigExtension => {
       const createValue = ctx.values.create as string | undefined;
@@ -197,6 +202,7 @@ export default function config() {
         tempExt: ctx.values["temp-ext"] as string | undefined,
         tempExtAtomic: ctx.values["temp-ext-atomic"] as string | undefined,
         tempExtPrevalidate: ctx.values["temp-ext-prevalidate"] as string | undefined,
+        appendNewline: ctx.values["append-newline"] as boolean | undefined,
       };
     },
   });

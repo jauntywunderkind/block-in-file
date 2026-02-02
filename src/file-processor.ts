@@ -32,6 +32,7 @@ export interface ProcessContext {
   tempExt?: string;
   tempExtAtomic?: string;
   tempExtPrevalidate?: string;
+  appendNewline?: boolean;
 }
 
 export interface ProcessResult {
@@ -64,6 +65,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     tempExt,
     tempExtAtomic,
     tempExtPrevalidate,
+    appendNewline,
   } = ctx;
 
   if (debug) {
@@ -103,6 +105,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     inputBlock,
     before: before === true ? undefined : before,
     after: after === true ? undefined : after,
+    appendNewline,
   });
 
   const outputText = formatOutputs(result.outputs, dos);

@@ -6,10 +6,11 @@ export interface ParseOptions {
   inputBlock: string;
   before?: RegExp | boolean;
   after?: RegExp | boolean;
+  appendNewline?: boolean;
 }
 
 export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): ParseResult {
-  const { opener, closer, inputBlock, before, after } = opts;
+  const { opener, closer, inputBlock, before, after, appendNewline } = opts;
   const match = before || after;
   const outputs: string[] = [];
   const lines = fileContent.split("\n");
@@ -21,6 +22,9 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
 
   if (before === true) {
     outputs.push(opener, inputBlock, closer);
+    if (appendNewline) {
+      outputs.push("");
+    }
     done = true;
   }
 
@@ -42,6 +46,9 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
       }
 
       outputs.push(opener, inputBlock, closer);
+      if (appendNewline) {
+        outputs.push("");
+      }
       done = true;
     } else {
       outputs.push(line);
@@ -54,6 +61,9 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
 
   if (opened !== undefined) {
     outputs.push(opener, inputBlock, closer);
+    if (appendNewline) {
+      outputs.push("");
+    }
     done = true;
   }
 
@@ -62,6 +72,9 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
       matched = i;
     }
     outputs.splice(matched + (after ? 1 : 0), 0, opener, inputBlock, closer);
+    if (appendNewline) {
+      outputs.splice(matched + (after ? 1 : 0) + 3, 0, "");
+    }
   }
 
   return { outputs, matched, opened };

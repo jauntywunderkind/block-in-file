@@ -163,4 +163,73 @@ describe("BlockInFile integration", () => {
       expect(result).toContain("FROM FILE");
     });
   });
+
+  describe("append-newline option", () => {
+    it("inserts block without blank line after (default)", async () => {
+      const targetFile = path.join(tempDir, "target.txt");
+      await fs.writeFile(targetFile, "line1\nline2\n");
+
+      runBlockInFile(`${targetFile}`, "CONTENT");
+
+      const result = await fs.readFile(targetFile, "utf-8");
+      const lines = result.split("\n");
+      const endIdx = lines.indexOf("# blockinfile end");
+      expect(lines[endIdx + 1]).toBe("");
+      expect(lines[endIdx + 2]).toBeUndefined();
+    });
+
+    it("inserts block with blank line after when --append-newline is set", async () => {
+      const targetFile = path.join(tempDir, "target.txt");
+      await fs.writeFile(targetFile, "line1\nline2\n");
+
+      runBlockInFile(`--append-newline ${targetFile}`, "CONTENT");
+
+      const result = await fs.readFile(targetFile, "utf-8");
+      const lines = result.split("\n");
+      const endIdx = lines.indexOf("# blockinfile end");
+      expect(lines[endIdx + 1]).toBe("");
+      expect(lines[endIdx + 2]).toBe("");
+    });
+
+    it("replaces existing block with blank line after when --append-newline is set", async () => {
+      const targetFile = path.join(tempDir, "target.txt");
+      await fs.writeFile(targetFile, "line1\n# blockinfile start\nOLD\n# blockinfile end\nline2\n");
+
+      runBlockInFile(`--append-newline ${targetFile}`, "NEW");
+
+      const result = await fs.readFile(targetFile, "utf-8");
+      const lines = result.split("\n");
+      const endIdx = lines.indexOf("# blockinfile end");
+      expect(lines[endIdx + 1]).toBe("");
+      expect(lines[endIdx + 2]).toBe("line2");
+      expect(result).toContain("NEW");
+      expect(result).not.toContain("OLD");
+    });
+
+    it("inserts before pattern with blank line after", async () => {
+      const targetFile = path.join(tempDir, "target.txt");
+      await fs.writeFile(targetFile, "line1\nMARKER\nline3\n");
+
+      runBlockInFile(`--append-newline -b MARKER ${targetFile}`, "INSERTED");
+
+      const result = await fs.readFile(targetFile, "utf-8");
+      const lines = result.split("\n");
+      const endIdx = lines.indexOf("# blockinfile end");
+      expect(lines[endIdx + 1]).toBe("");
+      expect(lines[endIdx + 2]).toBe("MARKER");
+    });
+
+    it("inserts after pattern with blank line after", async () => {
+      const targetFile = path.join(tempDir, "target.txt");
+      await fs.writeFile(targetFile, "line1\nMARKER\nline3\n");
+
+      runBlockInFile(`--append-newline -a MARKER ${targetFile}`, "INSERTED");
+
+      const result = await fs.readFile(targetFile, "utf-8");
+      const lines = result.split("\n");
+      const endIdx = lines.indexOf("# blockinfile end");
+      expect(lines[endIdx + 1]).toBe("");
+      expect(lines[endIdx + 2]).toBe("line3");
+    });
+  });
 });
