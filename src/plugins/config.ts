@@ -73,12 +73,12 @@ export default function config() {
       ctx.addGlobalOption("before", {
         type: "string",
         short: "b",
-        description: "String or regex to insert before",
+        description: "Insert block before matching line (regex or BOF for beginning of file)",
       });
       ctx.addGlobalOption("after", {
         type: "string",
         short: "a",
-        description: "String or regex to insert after",
+        description: "Insert block after matching line (regex or EOF for end of file)",
       });
       ctx.addGlobalOption("create", {
         type: "string",

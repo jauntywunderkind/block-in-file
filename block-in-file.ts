@@ -68,8 +68,28 @@ const command = define<{
         fileContent = "";
       }
 
-      const before = configExt.before ? new RegExp(configExt.before) : undefined;
-      const after = configExt.after ? new RegExp(configExt.after) : undefined;
+      let before: RegExp | boolean | undefined;
+      let after: RegExp | boolean | undefined;
+
+      if (configExt.before === "BOF") {
+        before = true;
+      } else if (configExt.before) {
+        try {
+          before = new RegExp(configExt.before);
+        } catch (err) {
+          throw new Error(`Invalid --before regex: ${(err as Error).message}`);
+        }
+      }
+
+      if (configExt.after === "EOF") {
+        after = true;
+      } else if (configExt.after) {
+        try {
+          after = new RegExp(configExt.after);
+        } catch (err) {
+          throw new Error(`Invalid --after regex: ${(err as Error).message}`);
+        }
+      }
 
       if (before && after) {
         throw new Error("Cannot have both 'before' and 'after'");

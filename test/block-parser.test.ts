@@ -109,6 +109,34 @@ describe("block-parser", () => {
       ]);
     });
 
+    it("inserts at end when after=true (EOF)", () => {
+      const result = parseLines(["line1", "line2"], {
+        ...defaultOpts,
+        after: true,
+      });
+      expect(result.outputs).toEqual([
+        "line1",
+        "line2",
+        "# blockinfile start",
+        "NEW CONTENT",
+        "# blockinfile end",
+      ]);
+    });
+
+    it("inserts at beginning when before=true (BOF)", () => {
+      const result = parseLines(["line1", "line2"], {
+        ...defaultOpts,
+        before: true,
+      });
+      expect(result.outputs).toEqual([
+        "# blockinfile start",
+        "NEW CONTENT",
+        "# blockinfile end",
+        "line1",
+        "line2",
+      ]);
+    });
+
     it("replaces multi-line existing block", () => {
       const lines = [
         "header",
