@@ -1,7 +1,24 @@
 import { plugin } from "gunshi/plugin";
-import { pluginId, type ConfigExtension } from "./types.js";
+
+export const pluginId = "blockinfile:config" as const;
+export type PluginId = typeof pluginId;
 
 export type CreateArg = boolean | "file" | "block";
+
+export interface ConfigExtension {
+  name: string;
+  comment: string;
+  markerStart: string;
+  markerEnd: string;
+  dos: boolean;
+  debug: boolean;
+  input: string;
+  output: string;
+  create?: CreateArg;
+  before?: string;
+  after?: string;
+  diff?: string;
+}
 
 export default function config() {
   return plugin<{}, typeof pluginId, [], ConfigExtension>({

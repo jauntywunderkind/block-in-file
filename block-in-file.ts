@@ -1,13 +1,13 @@
 #!/usr/bin/env -S npx tsx
 import { cli, define } from "gunshi";
-import { pluginId as configId, type ConfigExtension } from "./src/plugins/config/types.js";
-import { pluginId as loggerId, type LoggerExtension } from "./src/plugins/logger/types.js";
-import { pluginId as ioId, type IOExtension } from "./src/plugins/io/types.js";
-import { pluginId as diffId, type DiffExtension } from "./src/plugins/diff/types.js";
-import logger from "./src/plugins/logger/index.js";
-import config from "./src/plugins/config/index.js";
-import io from "./src/plugins/io/index.js";
-import diff from "./src/plugins/diff/index.js";
+import { pluginId as configId, type ConfigExtension } from "./src/plugins/config.js";
+import { pluginId as loggerId, type LoggerExtension } from "./src/plugins/logger.js";
+import { pluginId as ioId, type IOExtension } from "./src/plugins/io.js";
+import { pluginId as diffId, type DiffExtension } from "./src/plugins/diff.js";
+import logger from "./src/plugins/logger.js";
+import config from "./src/plugins/config.js";
+import io from "./src/plugins/io.js";
+import diff from "./src/plugins/diff.js";
 import { parseAndInsertBlock } from "./src/block-parser.js";
 import { formatOutputs } from "./src/output.js";
 
