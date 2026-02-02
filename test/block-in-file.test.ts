@@ -16,8 +16,8 @@ describe("BlockInFile integration", () => {
   });
 
   function runBlockInFile(args: string, input?: string): string {
-    const cwd = path.resolve(import.meta.dirname!, "../..");
-    const cmd = `deno run --allow-read --allow-write block-in-file.ts ${args}`;
+    const cwd = path.resolve(import.meta.dirname!, "..");
+    const cmd = `npx tsx block-in-file.ts ${args}`;
     return execSync(cmd, {
       cwd,
       input,

@@ -1,0 +1,150 @@
+import type { ModeArg } from "./plugins/config.js";
+import type { LoggerExtension } from "./plugins/logger.js";
+import type { IOExtension } from "./plugins/io.js";
+import type { DiffExtension } from "./plugins/diff.js";
+import type { BackupOptions } from "./backup.js";
+import { parseAndInsertBlock } from "./block-parser.js";
+import { formatOutputs } from "./output.js";
+import { detectBlockState, shouldSkipForMode } from "./mode-handler.js";
+import { runValidation } from "./validation.ts";
+
+export interface ProcessContext {
+  file: string;
+  fileExists: boolean;
+  fileContent: string;
+  inputBlock: string;
+  opener: string;
+  closer: string;
+  before?: RegExp | boolean;
+  after?: RegExp | boolean;
+  mode?: ModeArg;
+  force?: boolean;
+  create?: boolean;
+  validateCmd?: string;
+  debug: boolean;
+  logger: LoggerExtension;
+  io: IOExtension;
+  diffExt: DiffExtension;
+  output: string;
+  dos: boolean;
+  backupOptions?: BackupOptions;
+}
+
+export interface ProcessResult {
+  status: "written" | "skipped" | "validation-failed";
+  reason?: string;
+  outputs?: string[];
+  originalContent?: string;
+}
+
+export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
+  const {
+    file,
+    fileContent,
+    opener,
+    closer,
+    inputBlock,
+    before,
+    after,
+    mode,
+    force,
+    validateCmd,
+    debug,
+    logger,
+    io,
+    diffExt: _diffExt,
+    output,
+    dos,
+    backupOptions,
+    create,
+  } = ctx;
+
+  if (debug) {
+    logger.debug(`Processing file: ${file}`);
+  }
+
+  const blockExists = fileContent.includes(opener);
+  const wouldChange = blockWouldChange(fileContent, inputBlock, opener, closer);
+  const state = detectBlockState(ctx.fileExists, blockExists, wouldChange);
+
+  if (mode && mode !== "none") {
+    const decision = shouldSkipForMode(state, mode);
+    if (decision.skip) {
+      if (debug) {
+        logger.debug(`mode=${mode}: skipping, ${decision.reason}`);
+      }
+      return { status: "skipped", reason: decision.reason };
+    }
+  }
+
+  if (before === true || (create && !ctx.fileExists)) {
+    await io.writeFile(file, "");
+  }
+
+  const result = parseAndInsertBlock(fileContent, {
+    opener,
+    closer,
+    inputBlock,
+    before: before === true ? undefined : before,
+    after: after === true ? undefined : after,
+  });
+
+  const outputText = formatOutputs(result.outputs, dos);
+  if (debug) {
+    logger.debug(`Output text length: ${outputText.length}`);
+  }
+
+  let originalContent: string | undefined;
+  if (output === "---") {
+    originalContent = fileContent;
+    if (backupOptions && backupOptions.enabled) {
+      const backup = await io.backupFile(file, backupOptions, fileContent);
+      if (backup && debug) {
+        logger.debug(`Created backup: ${backup}`);
+      }
+    }
+  }
+
+  if (output === "---") {
+    await io.writeFile(file, outputText);
+  } else if (output === "-") {
+    io.writeFile(output, outputText);
+  } else if (output === "--") {
+    await io.writeFile(file, outputText);
+  } else {
+    await io.writeFile(output, outputText);
+  }
+
+  if (validateCmd && !force) {
+    await runValidation(file, validateCmd);
+  }
+
+  if (debug) {
+    logger.debug(`Completed processing: ${file}`);
+  }
+
+  return { status: "written", outputs: result.outputs, originalContent };
+}
+
+function blockWouldChange(
+  fileContent: string,
+  inputBlock: string,
+  opener: string,
+  closer: string,
+): boolean {
+  const openerIndex = fileContent.indexOf(opener);
+  if (openerIndex === -1) {
+    return true;
+  }
+
+  const closerIndex = fileContent.indexOf(closer, openerIndex);
+  if (closerIndex === -1) {
+    return true;
+  }
+
+  const blockContent = fileContent.slice(openerIndex + opener.length, closerIndex);
+  const lines = blockContent.split("\n");
+  const content = lines.slice(1).join("\n");
+
+  return content.trim() !== inputBlock.trim();
+}

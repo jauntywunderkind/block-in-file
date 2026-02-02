@@ -4,23 +4,11 @@ import { pluginId as configId, type ConfigExtension } from "./src/plugins/config
 import { pluginId as loggerId, type LoggerExtension } from "./src/plugins/logger.js";
 import { pluginId as ioId, type IOExtension } from "./src/plugins/io.js";
 import { pluginId as diffId, type DiffExtension } from "./src/plugins/diff.js";
-import { x } from "tinyexec";
-import { tokenizeArgs } from "args-tokenizer";
 import logger from "./src/plugins/logger.js";
 import config from "./src/plugins/config.js";
 import io from "./src/plugins/io.js";
 import diff from "./src/plugins/diff.js";
-import { parseAndInsertBlock } from "./src/block-parser.js";
-import { formatOutputs } from "./src/output.js";
-
-async function runValidation(file: string, validateCmd: string): Promise<void> {
-  const substitutedCmd = validateCmd.replaceAll("%s", file);
-  const [command, ...args] = tokenizeArgs(substitutedCmd);
-  const result = await x(command, args, { throwOnError: true });
-  if (result.exitCode !== 0) {
-    throw new Error(result.stderr || "Validation command failed");
-  }
-}
+import { processFile, type ProcessContext, type ProcessResult } from "./src/file-processor.js";
 
 const command = define<{
   extensions: Record<typeof configId, ConfigExtension> &
@@ -49,68 +37,79 @@ const command = define<{
       throw new Error("Need file argument for diff mode");
     }
 
-    logger.debug(`Processing ${files.length} file(s)`);
+    if (configExt.debug) {
+      logger.debug(`Processing ${files.length} file(s)`);
+    }
 
     const opener = `${configExt.comment} ${configExt.name} ${configExt.markerStart}`;
     const closer = `${configExt.comment} ${configExt.name} ${configExt.markerEnd}`;
 
     const inputBlock = await io.readFile(configExt.input);
-    logger.debug(`Input block: ${inputBlock.slice(0, 50)}...`);
-
-    for (const file of files) {
-      logger.debug(`Processing file: ${file}`);
-
-      let originalContent = "";
-      if (configExt.diff) {
-        try {
-          originalContent = await io.readFile(file);
-        } catch {
-          logger.debug(`File does not exist yet: ${file}`);
-        }
-      }
-
-      let fileContent: string;
-
-      const prediction = predictChanges(
-        opener,
-        closer,
-        inputBlock,
-        before,
-        after,
-      });
-        opener,
-        closer,
-        inputBlock,
-        before,
-        after,
-      });
-
-      const outputText = formatOutputs(outputs, configExt.dos);
-      logger.debug(`Output text length: ${outputText.length}`);
-
-      if (configExt.backupOptions?.enabled && configExt.output === "---") {
-        const backup = await io.backupFile(file, configExt.backupOptions, fileContent);
-        if (backup) {
-          logger.debug(`Created backup: ${backup}`);
-        }
-      }
-
-      if (configExt.diff) {
-        await diffExt.writeDiff(configExt.diff, originalContent, outputText, file);
-      } else if (configExt.output === "---") {
-        await io.writeFile(file, outputText);
-      } else if (configExt.output === "-") {
-        io.writeFile(configExt.output, outputText);
-      } else if (configExt.output === "--") {
-        await io.writeFile(file, outputText);
-      } else {
-        await io.writeFile(configExt.output, outputText);
-      }
-
-      logger.debug(`Completed processing: ${file}`);
+    if (configExt.debug) {
+      logger.debug(`Input block: ${inputBlock.slice(0, 50)}...`);
     }
 
-    logger.log("Done!");
+    const before = configExt.before ? new RegExp(configExt.before) : undefined;
+    const after = configExt.after ? new RegExp(configExt.after) : undefined;
+
+    const results: ProcessResult[] = [];
+
+    for (const file of files) {
+      const fileExists = await io.fileExists(file);
+      let fileContent = "";
+
+      if (fileExists) {
+        try {
+          fileContent = await io.readFile(file);
+        } catch {
+          if (configExt.debug) {
+            logger.debug(`File does not exist yet: ${file}`);
+          }
+        }
+      }
+
+      const processContext: ProcessContext = {
+        file,
+        fileExists,
+        fileContent,
+        inputBlock,
+        opener,
+        closer,
+        before,
+        after,
+        mode: configExt.mode,
+        force: configExt.force,
+        create: configExt.create === true || configExt.create === "file",
+        validateCmd: configExt.validate,
+        debug: configExt.debug,
+        logger,
+        io,
+        diffExt,
+        output: configExt.output,
+        dos: configExt.dos,
+        backupOptions: configExt.backupOptions,
+      };
+
+      const result = await processFile(processContext);
+      results.push(result);
+
+      if (configExt.diff && result.status === "written" && result.originalContent !== undefined) {
+        await diffExt.writeDiff(
+          configExt.diff,
+          result.originalContent,
+          result.outputs?.join("\n") || "",
+          file,
+        );
+      }
+    }
+
+    if (configExt.debug) {
+      const written = results.filter((r) => r.status === "written").length;
+      const skipped = results.filter((r) => r.status === "skipped").length;
+      logger.log(`Done! Written: ${written}, Skipped: ${skipped}`);
+    } else {
+      logger.log("Done!");
+    }
   },
 });
 

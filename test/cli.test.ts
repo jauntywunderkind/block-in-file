@@ -16,7 +16,7 @@ describe("CLI", () => {
   });
 
   function runCli(args: string, input?: string): string {
-    const cwd = path.resolve(import.meta.dirname!, "../..");
+    const cwd = path.resolve(import.meta.dirname!, "..");
     const cmd = `npx tsx block-in-file.ts ${args}`;
     return execSync(cmd, {
       cwd,
@@ -26,7 +26,7 @@ describe("CLI", () => {
   }
 
   async function runCliWithStderr(args: string, input?: string): Promise<string> {
-    const cwd = path.resolve(import.meta.dirname!, "../..");
+    const cwd = path.resolve(import.meta.dirname!, "..");
     const [command, ...argsArray] = `npx tsx block-in-file.ts ${args}`.split(" ");
     const child = spawn(command, argsArray, {
       cwd,

@@ -5,6 +5,7 @@ export const pluginId = "blockinfile:config" as const;
 export type PluginId = typeof pluginId;
 
 export type CreateArg = boolean | "file" | "block";
+export type ModeArg = "ensure" | "only" | "none";
 export type StateOnFailMode = "iterate" | "fail" | "overwrite";
 
 export interface ConfigExtension {
@@ -25,6 +26,8 @@ export interface ConfigExtension {
   stateOnFail?: StateOnFailMode;
   backupOptions?: BackupOptions;
   validate?: string;
+  mode?: ModeArg;
+  force?: boolean;
 }
 
 export default function config() {
@@ -120,10 +123,6 @@ export default function config() {
         short: "f",
         description: "Force mode - skip validation failures",
       });
-      ctx.addGlobalOption("dos", {
-        type: "boolean",
-        description: "Use dos line endings",
-      });
     },
     extension: (ctx): ConfigExtension => {
       const createValue = ctx.values.create as string | undefined;
@@ -154,6 +153,12 @@ export default function config() {
         backupOptions.stateOnFail = stateOnFail;
       }
 
+      const modeValue = ctx.values.mode as string | undefined;
+      let mode: ModeArg | undefined = undefined;
+      if (modeValue === "ensure" || modeValue === "only" || modeValue === "none") {
+        mode = modeValue as ModeArg;
+      }
+
       return {
         name: ctx.values.name as string,
         comment: ctx.values.comment as string,
@@ -172,6 +177,8 @@ export default function config() {
         stateOnFail,
         backupOptions,
         validate: ctx.values.validate as string | undefined,
+        mode,
+        force: ctx.values.force as boolean | undefined,
       };
     },
   });
