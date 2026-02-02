@@ -110,6 +110,20 @@ export default function config() {
         short: "v",
         description: "Validate with external command (use %s for file path)",
       });
+      ctx.addGlobalOption("mode", {
+        type: "string",
+        description:
+          "Operation mode: ensure (idempotent), only (create if missing), none (legacy, no guarantees)",
+      });
+      ctx.addGlobalOption("force", {
+        type: "boolean",
+        short: "f",
+        description: "Force mode - skip validation failures",
+      });
+      ctx.addGlobalOption("dos", {
+        type: "boolean",
+        description: "Use dos line endings",
+      });
     },
     extension: (ctx): ConfigExtension => {
       const createValue = ctx.values.create as string | undefined;

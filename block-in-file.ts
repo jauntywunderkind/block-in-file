@@ -70,57 +70,14 @@ const command = define<{
       }
 
       let fileContent: string;
-      try {
-        fileContent = await io.readFile(file);
-      } catch {
-        if (!configExt.create) {
-          throw new Error(`File does not exist and create not enabled: ${file}`);
-        }
-        fileContent = "";
-      }
 
-      let before: RegExp | boolean | undefined;
-      let after: RegExp | boolean | undefined;
-
-      if (configExt.before === "BOF") {
-        before = true;
-      } else if (configExt.before) {
-        try {
-          before = new RegExp(configExt.before);
-        } catch (err) {
-          throw new Error(`Invalid --before regex: ${(err as Error).message}`);
-        }
-      }
-
-      if (configExt.after === "EOF") {
-        after = true;
-      } else if (configExt.after) {
-        try {
-          after = new RegExp(configExt.after);
-        } catch (err) {
-          throw new Error(`Invalid --after regex: ${(err as Error).message}`);
-        }
-      }
-
-      if (before && after) {
-        throw new Error("Cannot have both 'before' and 'after'");
-      }
-
-      if (configExt.validate) {
-        logger.debug(`Validating with: ${configExt.validate}`);
-        try {
-          await runValidation(file, configExt.validate);
-        } catch (err) {
-          if (configExt.backupOptions?.stateOnFail === "fail") {
-            throw new Error(`Validation failed: ${(err as Error).message}`);
-          }
-          logger.debug(
-            `Validation failed but state-on-fail is not 'fail': ${(err as Error).message}`,
-          );
-        }
-      }
-
-      const { outputs } = parseAndInsertBlock(fileContent, {
+      const prediction = predictChanges(
+        opener,
+        closer,
+        inputBlock,
+        before,
+        after,
+      });
         opener,
         closer,
         inputBlock,
