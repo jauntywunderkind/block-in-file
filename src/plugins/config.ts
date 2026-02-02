@@ -32,6 +32,7 @@ export interface ConfigExtension {
   tempExtAtomic?: string;
   tempExtPrevalidate?: string;
   appendNewline?: boolean;
+  attributes?: string;
 }
 
 export default function config() {
@@ -143,6 +144,10 @@ export default function config() {
         type: "boolean",
         description: "Append blank line after block",
       });
+      ctx.addGlobalOption("attributes", {
+        type: "string",
+        description: "Set file attributes using chattr syntax (e.g., '+i', '-i', '+a')",
+      });
     },
     extension: (ctx): ConfigExtension => {
       const createValue = ctx.values.create as string | undefined;
@@ -203,6 +208,7 @@ export default function config() {
         tempExtAtomic: ctx.values["temp-ext-atomic"] as string | undefined,
         tempExtPrevalidate: ctx.values["temp-ext-prevalidate"] as string | undefined,
         appendNewline: ctx.values["append-newline"] as boolean | undefined,
+        attributes: ctx.values.attributes as string | undefined,
       };
     },
   });

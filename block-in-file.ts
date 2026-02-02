@@ -92,6 +92,7 @@ const command = define<{
         tempExtAtomic: configExt.tempExtAtomic,
         tempExtPrevalidate: configExt.tempExtPrevalidate,
         appendNewline: configExt.appendNewline,
+        attributes: configExt.attributes,
       };
 
       const result = await processFile(processContext);

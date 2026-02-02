@@ -8,6 +8,7 @@ import { formatOutputs } from "./output.js";
 import { detectBlockState, shouldSkipForMode } from "./mode-handler.js";
 import { runValidation } from "./validation.ts";
 import { detectConflicts } from "./conflict-detection.ts";
+import { parseAttributes, applyAttributesSafe } from "./attributes.js";
 
 export interface ProcessContext {
   file: string;
@@ -33,6 +34,7 @@ export interface ProcessContext {
   tempExtAtomic?: string;
   tempExtPrevalidate?: string;
   appendNewline?: boolean;
+  attributes?: string;
 }
 
 export interface ProcessResult {
@@ -66,6 +68,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     tempExtAtomic,
     tempExtPrevalidate,
     appendNewline,
+    attributes,
   } = ctx;
 
   if (debug) {
@@ -144,6 +147,11 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     }
 
     await io.rename(tempFile, file);
+
+    if (attributes) {
+      const changes = parseAttributes(attributes);
+      await applyAttributesSafe(file, changes, { debug, logger, io });
+    }
   } else if (output === "-") {
     io.writeFile(output, outputText);
   } else {
