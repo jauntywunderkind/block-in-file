@@ -24,6 +24,7 @@ export interface ConfigExtension {
   backupDir?: string;
   stateOnFail?: StateOnFailMode;
   backupOptions?: BackupOptions;
+  validate?: string;
 }
 
 export default function config() {
@@ -104,6 +105,11 @@ export default function config() {
         type: "string",
         description: "Behavior when backup fails: iterate (add .1 .2), fail, overwrite",
       });
+      ctx.addGlobalOption("validate", {
+        type: "string",
+        short: "v",
+        description: "Validate with external command (use %s for file path)",
+      });
     },
     extension: (ctx): ConfigExtension => {
       const createValue = ctx.values.create as string | undefined;
@@ -151,6 +157,7 @@ export default function config() {
         backupDir: ctx.values["backup-dir"] as string | undefined,
         stateOnFail,
         backupOptions,
+        validate: ctx.values.validate as string | undefined,
       };
     },
   });

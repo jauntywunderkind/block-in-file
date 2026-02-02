@@ -11,9 +11,15 @@ importers:
       '@gunshi/plugin':
         specifier: ^0.27.5
         version: 0.27.5
+      args-tokenizer:
+        specifier: ^0.3.0
+        version: 0.3.0
       gunshi:
         specifier: ^0.27.5
         version: 0.27.5
+      tinyexec:
+        specifier: ^1.0.2
+        version: 1.0.2
     devDependencies:
       '@types/node':
         specifier: ^25.2.0
@@ -558,6 +564,9 @@ packages:
   ansi-styles@4.3.0:
     resolution: {integrity: sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==}
     engines: {node: '>=8'}
+
+  args-tokenizer@0.3.0:
+    resolution: {integrity: sha512-xXAd7G2Mll5W8uo37GETpQ2VrE84M181Z7ugHFGQnJZ50M2mbOv0osSZ9VsSgPfJQ+LVG0prSi0th+ELMsno7Q==}
 
   args-tokens@0.23.0:
     resolution: {integrity: sha512-VZETsQmpEGO7A9adjfIOTyZuxKzurUas9kh1Hm0WGhFq8dOyw50P6OjiTwKyURwnmDabw0DbFjI+BUucJfCtnQ==}
@@ -1229,6 +1238,8 @@ snapshots:
   ansi-styles@4.3.0:
     dependencies:
       color-convert: 2.0.1
+
+  args-tokenizer@0.3.0: {}
 
   args-tokens@0.23.0: {}
 

@@ -4,12 +4,23 @@ import { pluginId as configId, type ConfigExtension } from "./src/plugins/config
 import { pluginId as loggerId, type LoggerExtension } from "./src/plugins/logger.js";
 import { pluginId as ioId, type IOExtension } from "./src/plugins/io.js";
 import { pluginId as diffId, type DiffExtension } from "./src/plugins/diff.js";
+import { x } from "tinyexec";
+import { tokenizeArgs } from "args-tokenizer";
 import logger from "./src/plugins/logger.js";
 import config from "./src/plugins/config.js";
 import io from "./src/plugins/io.js";
 import diff from "./src/plugins/diff.js";
 import { parseAndInsertBlock } from "./src/block-parser.js";
 import { formatOutputs } from "./src/output.js";
+
+async function runValidation(file: string, validateCmd: string): Promise<void> {
+  const substitutedCmd = validateCmd.replaceAll("%s", file);
+  const [command, ...args] = tokenizeArgs(substitutedCmd);
+  const result = await x(command, args, { throwOnError: true });
+  if (result.exitCode !== 0) {
+    throw new Error(result.stderr || "Validation command failed");
+  }
+}
 
 const command = define<{
   extensions: Record<typeof configId, ConfigExtension> &
@@ -93,6 +104,20 @@ const command = define<{
 
       if (before && after) {
         throw new Error("Cannot have both 'before' and 'after'");
+      }
+
+      if (configExt.validate) {
+        logger.debug(`Validating with: ${configExt.validate}`);
+        try {
+          await runValidation(file, configExt.validate);
+        } catch (err) {
+          if (configExt.backupOptions?.stateOnFail === "fail") {
+            throw new Error(`Validation failed: ${(err as Error).message}`);
+          }
+          logger.debug(
+            `Validation failed but state-on-fail is not 'fail': ${(err as Error).message}`,
+          );
+        }
       }
 
       const { outputs } = parseAndInsertBlock(fileContent, {
