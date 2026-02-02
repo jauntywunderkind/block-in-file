@@ -90,32 +90,21 @@ describe("Backup", () => {
   describe("generateBackupPaths", () => {
     it("should generate single backup path", () => {
       const variables = generateTemplateVariables();
-      const paths = generateBackupPaths("file.txt", [".{date}.backup"], variables);
+      const backupPath = generateBackupPaths("file.txt", ".{date}.backup", variables);
 
-      expect(paths).toHaveLength(1);
-      expect(paths[0]).toBe(`file.txt.${variables.date}.backup`);
-    });
-
-    it("should generate multiple backup paths", () => {
-      const variables = generateTemplateVariables();
-      const paths = generateBackupPaths("file.txt", [".{date}.backup", ".bak"], variables);
-
-      expect(paths).toHaveLength(2);
-      expect(paths[0]).toBe(`file.txt.${variables.date}.backup`);
-      expect(paths[1]).toBe("file.txt.bak");
+      expect(backupPath).toBe(`file.txt.${variables.date}.backup`);
     });
 
     it("should use backup directory when specified", () => {
       const variables = generateTemplateVariables();
-      const paths = generateBackupPaths(
+      const backupPath = generateBackupPaths(
         path.join("some", "dir", "file.txt"),
-        [".{date}.backup"],
+        ".{date}.backup",
         variables,
         "/backups",
       );
 
-      expect(paths).toHaveLength(1);
-      expect(paths[0]).toBe(`/backups/file.txt.${variables.date}.backup`);
+      expect(backupPath).toBe(`/backups/file.txt.${variables.date}.backup`);
     });
   });
 
@@ -226,68 +215,62 @@ describe("Backup", () => {
   });
 
   describe("parseBackupOption", () => {
-    it("should parse boolean true", () => {
-      const options1 = parseBackupOption("true");
-      const options2 = parseBackupOption("1");
-
-      expect(options1.enabled).toBe(true);
-      expect(options1.suffixes[0]).toBe(".{epoch}.backup");
-      expect(options2.enabled).toBe(true);
-      expect(options2.suffixes[0]).toBe(".{epoch}.backup");
-    });
-
-    it("should parse boolean false", () => {
-      const options1 = parseBackupOption("false");
-      const options2 = parseBackupOption("0");
-
-      expect(options1.enabled).toBe(false);
-      expect(options1.suffixes).toHaveLength(0);
-      expect(options2.enabled).toBe(false);
-      expect(options2.suffixes).toHaveLength(0);
-    });
-
-    it("should parse custom suffix", () => {
-      const options = parseBackupOption(".bak");
+    it("should parse single backup suffix", () => {
+      const options = parseBackupOption(["bak"]);
 
       expect(options.enabled).toBe(true);
-      expect(options.suffixes).toEqual([".bak"]);
+      expect(options.suffix).toBe(".bak");
     });
 
-    it("should parse multiple space-separated suffixes", () => {
-      const options = parseBackupOption(".bak .backup");
+    it("should parse multiple backup suffixes", () => {
+      const options = parseBackupOption(["foo", "bar"]);
 
       expect(options.enabled).toBe(true);
-      expect(options.suffixes).toEqual([".bak", ".backup"]);
+      expect(options.suffix).toBe(".foo.bar");
     });
 
-    it("should parse template with variables", () => {
-      const options = parseBackupOption(".{date}.bak");
+    it("should add dot if not present", () => {
+      const options = parseBackupOption(["backup"]);
 
       expect(options.enabled).toBe(true);
-      expect(options.suffixes).toEqual([".{date}.bak"]);
+      expect(options.suffix).toBe(".backup");
     });
 
-    it("should handle undefined backup option", () => {
+    it("should preserve existing dot", () => {
+      const options = parseBackupOption([".backup"]);
+
+      expect(options.enabled).toBe(true);
+      expect(options.suffix).toBe(".backup");
+    });
+
+    it("should handle empty array", () => {
+      const options = parseBackupOption([]);
+
+      expect(options.enabled).toBe(false);
+      expect(options.suffix).toBe("");
+    });
+
+    it("should handle undefined", () => {
       const options = parseBackupOption(undefined);
 
       expect(options.enabled).toBe(false);
-      expect(options.suffixes).toHaveLength(0);
+      expect(options.suffix).toBe("");
     });
   });
 
   describe("performBackup", () => {
-    it("should not create backups when disabled", async () => {
+    it("should not create backup when disabled", async () => {
       const originalFile = path.join(tempDir, "file.txt");
       await fs.writeFile(originalFile, "content");
 
       const options: BackupOptions = {
         enabled: false,
-        suffixes: [".backup"],
+        suffix: "",
       };
 
-      const backups = await performBackup(originalFile, options);
+      const backup = await performBackup(originalFile, options);
 
-      expect(backups).toHaveLength(0);
+      expect(backup).toBeNull();
     });
 
     it("should create single backup", async () => {
@@ -296,32 +279,32 @@ describe("Backup", () => {
 
       const options: BackupOptions = {
         enabled: true,
-        suffixes: [".backup"],
+        suffix: ".backup",
       };
 
-      const backups = await performBackup(originalFile, options);
+      const backup = await performBackup(originalFile, options);
 
-      expect(backups).toHaveLength(1);
-      expect(backups[0]).toBe(path.join(tempDir, "file.txt.backup"));
+      expect(backup).toBe(path.join(tempDir, "file.txt.backup"));
 
-      const backupContent = await fs.readFile(backups[0], "utf-8");
+      const backupContent = await fs.readFile(backup!, "utf-8");
       expect(backupContent).toBe("content");
     });
 
-    it("should create multiple backups", async () => {
+    it("should create backup with concatenated suffix", async () => {
       const originalFile = path.join(tempDir, "file.txt");
       await fs.writeFile(originalFile, "content");
 
       const options: BackupOptions = {
         enabled: true,
-        suffixes: [".backup", ".bak"],
+        suffix: ".foo.bar",
       };
 
-      const backups = await performBackup(originalFile, options);
+      const backup = await performBackup(originalFile, options);
 
-      expect(backups).toHaveLength(2);
-      expect(backups[0]).toBe(path.join(tempDir, "file.txt.backup"));
-      expect(backups[1]).toBe(path.join(tempDir, "file.txt.bak"));
+      expect(backup).toBe(path.join(tempDir, "file.txt.foo.bar"));
+
+      const backupContent = await fs.readFile(backup!, "utf-8");
+      expect(backupContent).toBe("content");
     });
 
     it("should use custom backup directory", async () => {
@@ -333,14 +316,13 @@ describe("Backup", () => {
 
       const options: BackupOptions = {
         enabled: true,
-        suffixes: [".backup"],
+        suffix: ".backup",
         backupDir,
       };
 
-      const backups = await performBackup(originalFile, options);
+      const backup = await performBackup(originalFile, options);
 
-      expect(backups).toHaveLength(1);
-      expect(backups[0]).toBe(path.join(backupDir, "file.txt.backup"));
+      expect(backup).toBe(path.join(backupDir, "file.txt.backup"));
     });
 
     it("should iterate when backup exists", async () => {
@@ -352,14 +334,13 @@ describe("Backup", () => {
 
       const options: BackupOptions = {
         enabled: true,
-        suffixes: [".backup"],
+        suffix: ".backup",
         stateOnFail: "iterate",
       };
 
-      const backups = await performBackup(originalFile, options);
+      const backup = await performBackup(originalFile, options);
 
-      expect(backups).toHaveLength(1);
-      expect(backups[0]).toBe(`${existingBackup}.1`);
+      expect(backup).toBe(`${existingBackup}.1`);
 
       const originalBackupContent = await fs.readFile(existingBackup, "utf-8");
       expect(originalBackupContent).toBe("old backup");
@@ -374,7 +355,7 @@ describe("Backup", () => {
 
       const options: BackupOptions = {
         enabled: true,
-        suffixes: [".backup"],
+        suffix: ".backup",
         stateOnFail: "fail",
       };
 
@@ -390,14 +371,13 @@ describe("Backup", () => {
 
       const options: BackupOptions = {
         enabled: true,
-        suffixes: [".backup"],
+        suffix: ".backup",
         stateOnFail: "overwrite",
       };
 
-      const backups = await performBackup(originalFile, options);
+      const backup = await performBackup(originalFile, options);
 
-      expect(backups).toHaveLength(1);
-      expect(backups[0]).toBe(existingBackup);
+      expect(backup).toBe(existingBackup);
 
       const backupContent = await fs.readFile(existingBackup, "utf-8");
       expect(backupContent).toBe("content");

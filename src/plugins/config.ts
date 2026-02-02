@@ -20,7 +20,7 @@ export interface ConfigExtension {
   before?: string;
   after?: string;
   diff?: string;
-  backup?: string;
+  backup?: string[];
   backupDir?: string;
   stateOnFail?: StateOnFailMode;
   backupOptions?: BackupOptions;
@@ -93,7 +93,8 @@ export default function config() {
       ctx.addGlobalOption("backup", {
         type: "string",
         short: "B",
-        description: "Create backup with suffix pattern (e.g., '.{date}.backup', '.bak')",
+        description: "Create backup with suffix pattern (e.g., 'foo', 'bak')",
+        multiple: true,
       });
       ctx.addGlobalOption("backup-dir", {
         type: "string",
@@ -115,7 +116,7 @@ export default function config() {
         create = false;
       }
 
-      const backupValue = ctx.values.backup as string | undefined;
+      const backupValue = ctx.values.backup as string[] | undefined;
       const backupOptions = parseBackupOption(backupValue);
 
       if (ctx.values["backup-dir"]) {

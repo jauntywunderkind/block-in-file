@@ -87,9 +87,9 @@ const command = define<{
       logger.debug(`Output text length: ${outputText.length}`);
 
       if (configExt.backupOptions?.enabled && configExt.output === "---") {
-        const backups = await io.backupFile(file, configExt.backupOptions, fileContent);
-        if (backups.length > 0) {
-          logger.debug(`Created backups: ${backups.join(", ")}`);
+        const backup = await io.backupFile(file, configExt.backupOptions, fileContent);
+        if (backup) {
+          logger.debug(`Created backup: ${backup}`);
         }
       }
 

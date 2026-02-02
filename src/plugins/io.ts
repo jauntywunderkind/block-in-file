@@ -12,7 +12,7 @@ export interface IOExtension {
   writeFile: (path: string, content: string) => Promise<void>;
   readStdin: () => Promise<string>;
   fileExists: (path: string) => Promise<boolean>;
-  backupFile: (path: string, options: BackupOptions, content?: string) => Promise<string[]>;
+  backupFile: (path: string, options: BackupOptions, content?: string) => Promise<string | null>;
 }
 
 const readStdin = async (): Promise<string> => {

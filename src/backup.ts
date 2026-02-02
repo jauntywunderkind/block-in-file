@@ -6,7 +6,7 @@ export type BackupMode = "iterate" | "fail" | "overwrite";
 
 export interface BackupOptions {
   enabled: boolean;
-  suffixes: string[];
+  suffix: string;
   backupDir?: string;
   stateOnFail?: BackupMode;
 }
@@ -52,16 +52,13 @@ export function replaceTemplateVariables(template: string, variables: TemplateVa
 
 export function generateBackupPaths(
   originalPath: string,
-  suffixes: string[],
+  suffix: string,
   variables: TemplateVariables,
   backupDir?: string,
-): string[] {
+): string {
   const basePath = backupDir ? path.join(backupDir, path.basename(originalPath)) : originalPath;
-
-  return suffixes.map((suffix) => {
-    const processedSuffix = replaceTemplateVariables(suffix, variables);
-    return `${basePath}${processedSuffix}`;
-  });
+  const processedSuffix = replaceTemplateVariables(suffix, variables);
+  return `${basePath}${processedSuffix}`;
 }
 
 export async function detectGitRepo(dir: string): Promise<boolean> {
@@ -131,64 +128,53 @@ export async function performBackup(
   originalPath: string,
   options: BackupOptions,
   content?: string,
-): Promise<string[]> {
+): Promise<string | null> {
   if (!options.enabled) {
-    return [];
+    return null;
   }
 
   const variables = generateTemplateVariables(content);
-  const backupPaths = generateBackupPaths(
+  const backupPath = generateBackupPaths(
     originalPath,
-    options.suffixes,
+    options.suffix,
     variables,
     options.backupDir,
   );
 
-  const createdBackups: string[] = [];
+  try {
+    await fs.access(originalPath);
 
-  for (const backupPath of backupPaths) {
-    try {
-      await fs.access(originalPath);
+    const finalBackupPath = await findAvailableBackupPath(backupPath, options.stateOnFail);
 
-      const finalBackupPath = await findAvailableBackupPath(backupPath, options.stateOnFail);
+    if (finalBackupPath === null && options.stateOnFail === "fail") {
+      throw new Error(
+        `Backup failed: backup file already exists and state-on-fail is set to 'fail'`,
+      );
+    }
 
-      if (finalBackupPath === null && options.stateOnFail === "fail") {
-        throw new Error(
-          `Backup failed: backup file already exists and state-on-fail is set to 'fail'`,
-        );
-      }
-
-      if (finalBackupPath) {
-        await createBackup(originalPath, finalBackupPath);
-        createdBackups.push(finalBackupPath);
-      }
-    } catch (err) {
-      if (options.stateOnFail === "fail") {
-        throw err;
-      }
+    if (finalBackupPath) {
+      await createBackup(originalPath, finalBackupPath);
+      return finalBackupPath;
+    }
+  } catch (err) {
+    if (options.stateOnFail === "fail") {
+      throw err;
     }
   }
 
-  return createdBackups;
+  return null;
 }
 
-export function parseBackupOption(backupArg: string | undefined): BackupOptions {
-  if (!backupArg) {
-    return { enabled: false, suffixes: [] };
+export function parseBackupOption(backupArgs: string[] | undefined): BackupOptions {
+  if (!backupArgs || backupArgs.length === 0) {
+    return { enabled: false, suffix: "" };
   }
 
-  if (backupArg === "true" || backupArg === "1") {
-    return { enabled: true, suffixes: [".{epoch}.backup"] };
-  }
-
-  if (backupArg === "false" || backupArg === "0") {
-    return { enabled: false, suffixes: [] };
-  }
-
-  const suffixes = backupArg.trim().split(/\s+/).filter(Boolean);
+  const joined = backupArgs.join(".");
+  const suffix = joined.startsWith(".") ? joined : `.${joined}`;
 
   return {
     enabled: true,
-    suffixes,
+    suffix,
   };
 }
