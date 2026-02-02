@@ -93,6 +93,8 @@ const command = define<{
         tempExtPrevalidate: configExt.tempExtPrevalidate,
         appendNewline: configExt.appendNewline,
         attributes: configExt.attributes,
+        removeAll: configExt.removeAll,
+        removeOrphans: configExt.removeOrphans,
       };
 
       const result = await processFile(processContext);
@@ -108,10 +110,18 @@ const command = define<{
       }
     }
 
-    if (configExt.debug) {
+    if (configExt.debug || configExt.removeAll) {
       const written = results.filter((r) => r.status === "written").length;
       const skipped = results.filter((r) => r.status === "skipped").length;
-      logger.log(`Done! Written: ${written}, Skipped: ${skipped}`);
+      const removed = results.filter((r) => r.status === "removed").length;
+      const totalRemoved = results.filter((r) => r.status === "removed").reduce((sum, r) => sum + (r.removalStats?.removed || 0), 0);
+      const totalOrphans = results.filter((r) => r.status === "removed").reduce((sum, r) => sum + (r.removalStats?.orphans || 0), 0);
+
+      if (configExt.removeAll) {
+        logger.log(`Done! Removed: ${removed} files, ${totalRemoved} blocks, ${totalOrphans} orphans`);
+      } else {
+        logger.log(`Done! Written: ${written}, Skipped: ${skipped}`);
+      }
     } else {
       logger.log("Done!");
     }

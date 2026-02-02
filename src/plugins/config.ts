@@ -33,6 +33,8 @@ export interface ConfigExtension {
   tempExtPrevalidate?: string;
   appendNewline?: boolean;
   attributes?: string;
+  removeAll?: string;
+  removeOrphans?: boolean;
 }
 
 export default function config() {
@@ -148,6 +150,14 @@ export default function config() {
         type: "string",
         description: "Set file attributes using chattr syntax (e.g., '+i', '-i', '+a')",
       });
+      ctx.addGlobalOption("remove-all", {
+        type: "string",
+        description: "Remove all blocks with specified name(s), space-separated",
+      });
+      ctx.addGlobalOption("remove-orphans", {
+        type: "boolean",
+        description: "Remove orphaned blocks (blocks with empty content)",
+      });
     },
     extension: (ctx): ConfigExtension => {
       const createValue = ctx.values.create as string | undefined;
@@ -209,6 +219,8 @@ export default function config() {
         tempExtPrevalidate: ctx.values["temp-ext-prevalidate"] as string | undefined,
         appendNewline: ctx.values["append-newline"] as boolean | undefined,
         attributes: ctx.values.attributes as string | undefined,
+        removeAll: ctx.values["remove-all"] as string | undefined,
+        removeOrphans: ctx.values["remove-orphans"] as boolean | undefined,
       };
     },
   });

@@ -9,6 +9,7 @@ import { detectBlockState, shouldSkipForMode } from "./mode-handler.js";
 import { runValidation } from "./validation.ts";
 import { detectConflicts } from "./conflict-detection.ts";
 import { parseAttributes, applyAttributesSafe } from "./attributes.js";
+import { removeBlocks, type RemovalStats } from "./block-remover.js";
 
 export interface ProcessContext {
   file: string;
@@ -35,13 +36,16 @@ export interface ProcessContext {
   tempExtPrevalidate?: string;
   appendNewline?: boolean;
   attributes?: string;
+  removeAll?: string;
+  removeOrphans?: boolean;
 }
 
 export interface ProcessResult {
-  status: "written" | "skipped" | "validation-failed";
+  status: "written" | "skipped" | "validation-failed" | "removed";
   reason?: string;
   outputs?: string[];
   originalContent?: string;
+  removalStats?: RemovalStats;
 }
 
 export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
@@ -69,6 +73,8 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     tempExtPrevalidate,
     appendNewline,
     attributes,
+    removeAll,
+    removeOrphans,
   } = ctx;
 
   if (debug) {
@@ -80,6 +86,84 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     throw new Error(
       `File conflicts detected:\n${conflictResult.conflicts.map((c) => c.message).join("\n")}`,
     );
+  }
+
+  if (removeAll) {
+    const blockNames = removeAll.trim().split(/\s+/).filter((n) => n.length > 0);
+
+    if (debug) {
+      logger.debug(`Removing blocks: ${blockNames.join(", ")}`);
+    }
+
+    const commentMatch = opener.match(/^(#\s*|\/\/\s*)/) || opener.match(/^(\/\/\s*)/);
+    const comment = commentMatch ? commentMatch[1] : "";
+    const openerParts = opener.split(/\s+/);
+    const closerParts = closer.split(/\s+/);
+    const markerStart = openerParts[openerParts.length - 1] || "start";
+    const markerEnd = closerParts[closerParts.length - 1] || "end";
+
+    const { content, stats } = removeBlocks({
+      fileContent,
+      blockNames,
+      comment,
+      markerStart,
+      markerEnd,
+      removeOrphans: removeOrphans || false,
+      debug,
+      logger,
+    });
+
+    let originalContent: string | undefined;
+    if (output === "---") {
+      originalContent = fileContent;
+      if (backupOptions && backupOptions.enabled) {
+        const backup = await io.backupFile(file, backupOptions, fileContent);
+        if (backup && debug) {
+          logger.debug(`Created backup: ${backup}`);
+        }
+      }
+    }
+
+    const outputText = formatOutputs([content], dos);
+
+    if (output === "---" || output === "--") {
+      let tempFile: string;
+
+      if (validateCmd && !force) {
+        const ext = tempExtPrevalidate || tempExt || ".prevalidate";
+        tempFile = `${file}${ext}`;
+        await io.writeFile(tempFile, outputText);
+        try {
+          await runValidation(tempFile, validateCmd);
+        } catch (err) {
+          await io.deleteFile(tempFile);
+          throw err;
+        }
+      } else {
+        const ext = tempExtAtomic || tempExt || ".atomic";
+        tempFile = `${file}${ext}`;
+        await io.writeFile(tempFile, outputText);
+      }
+
+      await io.rename(tempFile, file);
+
+      if (attributes) {
+        const changes = parseAttributes(attributes);
+        await applyAttributesSafe(file, changes, { debug, logger, io });
+      }
+    } else if (output === "-") {
+      io.writeFile(output, outputText);
+    } else {
+      await io.writeFile(output, outputText);
+    }
+
+    if (debug) {
+      logger.debug(
+        `Removed ${stats.removed} block(s) (${stats.orphans} orphans) from ${file}`,
+      );
+    }
+
+    return { status: "removed", removalStats: stats, originalContent };
   }
 
   const blockExists = fileContent.includes(opener);
