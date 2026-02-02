@@ -29,6 +29,8 @@ export interface ProcessContext {
   output: string;
   dos: boolean;
   backupOptions?: BackupOptions;
+  tempExtAtomic?: string;
+  tempExtPrevalidate?: string;
 }
 
 export interface ProcessResult {
@@ -58,6 +60,8 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     dos,
     backupOptions,
     create,
+    tempExtAtomic,
+    tempExtPrevalidate,
   } = ctx;
 
   if (debug) {
@@ -115,18 +119,31 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     }
   }
 
-  if (output === "---") {
-    await io.writeFile(file, outputText);
+  const atomicExt = tempExtAtomic || ".atomic";
+  const tempFile = `${file}${atomicExt}`;
+
+  if (output === "---" || output === "--") {
+    await io.writeFile(tempFile, outputText);
+
+    if (validateCmd && !force) {
+      const prevalidateExt = tempExtPrevalidate || ".prevalidate";
+      const prevalidateFile = `${file}${prevalidateExt}`;
+      await io.writeFile(prevalidateFile, outputText);
+      try {
+        await runValidation(prevalidateFile, validateCmd);
+      } catch (err) {
+        await io.deleteFile(prevalidateFile);
+        await io.deleteFile(tempFile);
+        throw err;
+      }
+      await io.deleteFile(prevalidateFile);
+    }
+
+    await io.rename(tempFile, file);
   } else if (output === "-") {
     io.writeFile(output, outputText);
-  } else if (output === "--") {
-    await io.writeFile(file, outputText);
   } else {
     await io.writeFile(output, outputText);
-  }
-
-  if (validateCmd && !force) {
-    await runValidation(file, validateCmd);
   }
 
   if (debug) {

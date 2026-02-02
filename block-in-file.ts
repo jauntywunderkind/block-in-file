@@ -88,6 +88,8 @@ const command = define<{
         output: configExt.output,
         dos: configExt.dos,
         backupOptions: configExt.backupOptions,
+        tempExtAtomic: configExt.tempExtAtomic,
+        tempExtPrevalidate: configExt.tempExtPrevalidate,
       };
 
       const result = await processFile(processContext);
