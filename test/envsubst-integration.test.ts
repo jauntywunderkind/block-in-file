@@ -47,7 +47,7 @@ describe("envsubst integration", () => {
     delete process.env.VAR2;
   });
 
-  it("should substitute until stable in non-recursive mode", async () => {
+  it("should do single pass in non-recursive mode", async () => {
     process.env.VAR1 = "final";
     process.env.VAR2 = "${VAR1}";
     process.env.VAR3 = "${VAR2}";
@@ -58,7 +58,8 @@ describe("envsubst integration", () => {
     );
 
     const content = await readFile(testFile, "utf8");
-    expect(content).toContain("final");
+    // Non-recursive: only ${VAR3} is replaced, result is ${VAR2}
+    expect(content).toContain("${VAR2}");
     delete process.env.VAR1;
     delete process.env.VAR2;
     delete process.env.VAR3;

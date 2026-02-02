@@ -6,17 +6,20 @@ export type EnvsubstMode = "recursive" | "non-recursive" | false;
 
 export interface EnvsubstOptions {
   mode: EnvsubstMode;
-  maxIterations?: number;
 }
 
 export function substitute(text: string, options: EnvsubstOptions): string {
-  const { mode, maxIterations = MAX_ITERATIONS } = options;
+  const { mode } = options;
 
   if (mode === false) {
     return text;
   }
 
-  return substituteUntilStable(text, maxIterations);
+  if (mode === "non-recursive") {
+    return substituteOnce(text);
+  }
+
+  return substituteUntilStable(text, MAX_ITERATIONS);
 }
 
 function substituteUntilStable(text: string, maxIterations: number): string {
@@ -35,13 +38,22 @@ function substituteUntilStable(text: string, maxIterations: number): string {
 
 function substituteOnce(text: string): string {
   let result = text;
+
   result = result.replace(VAR_PATTERN_BRACES, (match, varName) => {
     const value = process.env[varName];
-    return value !== undefined ? value : match;
+    if (value === undefined) {
+      return "";
+    }
+    return value;
   });
+
   result = result.replace(VAR_PATTERN_SIMPLE, (match, varName) => {
     const value = process.env[varName];
-    return value !== undefined ? value : match;
+    if (value === undefined) {
+      return "";
+    }
+    return value;
   });
+
   return result;
 }
