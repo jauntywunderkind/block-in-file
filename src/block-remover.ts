@@ -30,7 +30,8 @@ export function escapeRegex(str: string): string {
 }
 
 export function removeBlocks(opts: BlockRemoverOptions): { content: string; stats: RemovalStats } {
-  const { fileContent, blockNames, comment, markerStart, markerEnd, removeOrphans, debug, logger } = opts;
+  const { fileContent, blockNames, comment, markerStart, markerEnd, removeOrphans, debug, logger } =
+    opts;
 
   const lines = fileContent.split("\n");
   const stats: RemovalStats = {
@@ -46,8 +47,9 @@ export function removeBlocks(opts: BlockRemoverOptions): { content: string; stat
   let blockContent: string[] = [];
   let currentBlockName: string | null = null;
 
-  const openerRegex = new RegExp(`^${escapeRegex(comment)}\\s+(\\S+)\\s+${escapeRegex(markerStart)}`);
-  const closerRegex = new RegExp(`^${escapeRegex(comment)}\\s+(\\S+)\\s+${escapeRegex(markerEnd)}`);
+  const openerRegex = new RegExp(
+    `^${escapeRegex(comment)}\\s+(\\S+)\\s+${escapeRegex(markerStart)}`,
+  );
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -76,7 +78,9 @@ export function removeBlocks(opts: BlockRemoverOptions): { content: string; stat
           }
 
           if (debug) {
-            logger.debug(`Removed block at lines ${blockStartLine + 1}-${i + 1}: ${currentBlockName || "orphan"}`);
+            logger.debug(
+              `Removed block at lines ${blockStartLine + 1}-${i + 1}: ${currentBlockName || "orphan"}`,
+            );
           }
 
           inBlock = false;

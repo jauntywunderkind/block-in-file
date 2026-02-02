@@ -152,7 +152,7 @@ describe("block-remover", () => {
 
     it("correctly tracks line numbers", () => {
       const fileContent = "line1\nline2\n# blockinfile start\ncontent\n# blockinfile end\nline5\n";
-      const { content, stats } = removeBlocks({
+      const { stats } = removeBlocks({
         fileContent,
         blockNames: ["blockinfile"],
         comment: "#",
@@ -169,7 +169,8 @@ describe("block-remover", () => {
     });
 
     it("handles blocks with multi-line content", () => {
-      const fileContent = "line1\n# blockinfile start\nlineA\nlineB\nlineC\n# blockinfile end\nline2\n";
+      const fileContent =
+        "line1\n# blockinfile start\nlineA\nlineB\nlineC\n# blockinfile end\nline2\n";
       const { content, stats } = removeBlocks({
         fileContent,
         blockNames: ["blockinfile"],

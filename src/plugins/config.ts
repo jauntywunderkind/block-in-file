@@ -7,6 +7,7 @@ export type PluginId = typeof pluginId;
 export type CreateArg = boolean | "file" | "block";
 export type ModeArg = "ensure" | "only" | "none";
 export type StateOnFailMode = "iterate" | "fail" | "overwrite";
+export type EnvsubstMode = "recursive" | "non-recursive" | false;
 
 export interface ConfigExtension {
   name: string;
@@ -15,6 +16,7 @@ export interface ConfigExtension {
   markerEnd: string;
   dos: boolean;
   debug: boolean;
+  envsubst?: EnvsubstMode;
   input: string;
   output: string;
   create?: CreateArg;
@@ -158,6 +160,11 @@ export default function config() {
         type: "boolean",
         description: "Remove orphaned blocks (blocks with empty content)",
       });
+      ctx.addGlobalOption("envsubst", {
+        type: "string",
+        description:
+          "Enable environment variable substitution (true=recursive, non-recursive, false)",
+      });
     },
     extension: (ctx): ConfigExtension => {
       const createValue = ctx.values.create as string | undefined;
@@ -194,6 +201,16 @@ export default function config() {
         mode = modeValue as ModeArg;
       }
 
+      const envsubstValue = ctx.values.envsubst as string | undefined;
+      let envsubst: EnvsubstMode = false;
+      if (envsubstValue === "true" || envsubstValue === "recursive") {
+        envsubst = "recursive";
+      } else if (envsubstValue === "non-recursive") {
+        envsubst = "non-recursive";
+      } else if (envsubstValue === "false") {
+        envsubst = false;
+      }
+
       return {
         name: ctx.values.name as string,
         comment: ctx.values.comment as string,
@@ -201,6 +218,7 @@ export default function config() {
         markerEnd: ctx.values["marker-end"] as string,
         dos: ctx.values.dos as boolean,
         debug: ctx.values.debug as boolean,
+        envsubst,
         input: ctx.values.input as string,
         output: ctx.values.output as string,
         create,

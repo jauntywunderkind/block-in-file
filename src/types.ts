@@ -12,6 +12,7 @@ export interface BlockInFileOptions {
   debug?: boolean;
   diff?: string | boolean;
   dos?: boolean;
+  envsubst?: "recursive" | "non-recursive" | false;
   input?: string;
   markerStart: string;
   markerEnd: string;

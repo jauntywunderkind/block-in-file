@@ -95,6 +95,7 @@ const command = define<{
         attributes: configExt.attributes,
         removeAll: configExt.removeAll,
         removeOrphans: configExt.removeOrphans,
+        envsubst: configExt.envsubst,
       };
 
       const result = await processFile(processContext);
@@ -114,11 +115,17 @@ const command = define<{
       const written = results.filter((r) => r.status === "written").length;
       const skipped = results.filter((r) => r.status === "skipped").length;
       const removed = results.filter((r) => r.status === "removed").length;
-      const totalRemoved = results.filter((r) => r.status === "removed").reduce((sum, r) => sum + (r.removalStats?.removed || 0), 0);
-      const totalOrphans = results.filter((r) => r.status === "removed").reduce((sum, r) => sum + (r.removalStats?.orphans || 0), 0);
+      const totalRemoved = results
+        .filter((r) => r.status === "removed")
+        .reduce((sum, r) => sum + (r.removalStats?.removed || 0), 0);
+      const totalOrphans = results
+        .filter((r) => r.status === "removed")
+        .reduce((sum, r) => sum + (r.removalStats?.orphans || 0), 0);
 
       if (configExt.removeAll) {
-        logger.log(`Done! Removed: ${removed} files, ${totalRemoved} blocks, ${totalOrphans} orphans`);
+        logger.log(
+          `Done! Removed: ${removed} files, ${totalRemoved} blocks, ${totalOrphans} orphans`,
+        );
       } else {
         logger.log(`Done! Written: ${written}, Skipped: ${skipped}`);
       }

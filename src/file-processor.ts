@@ -1,4 +1,4 @@
-import type { ModeArg } from "./plugins/config.js";
+import type { ModeArg, EnvsubstMode } from "./plugins/config.js";
 import type { LoggerExtension } from "./plugins/logger.js";
 import type { IOExtension } from "./plugins/io.js";
 import type { DiffExtension } from "./plugins/diff.js";
@@ -10,6 +10,7 @@ import { runValidation } from "./validation.ts";
 import { detectConflicts } from "./conflict-detection.ts";
 import { parseAttributes, applyAttributesSafe } from "./attributes.js";
 import { removeBlocks, type RemovalStats } from "./block-remover.js";
+import { substitute } from "./envsubst.js";
 
 export interface ProcessContext {
   file: string;
@@ -38,6 +39,7 @@ export interface ProcessContext {
   attributes?: string;
   removeAll?: string;
   removeOrphans?: boolean;
+  envsubst?: EnvsubstMode;
 }
 
 export interface ProcessResult {
@@ -75,7 +77,10 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     attributes,
     removeAll,
     removeOrphans,
+    envsubst,
   } = ctx;
+
+  const processedInputBlock = envsubst ? substitute(inputBlock, { mode: envsubst }) : inputBlock;
 
   if (debug) {
     logger.debug(`Processing file: ${file}`);
@@ -89,7 +94,10 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
   }
 
   if (removeAll) {
-    const blockNames = removeAll.trim().split(/\s+/).filter((n) => n.length > 0);
+    const blockNames = removeAll
+      .trim()
+      .split(/\s+/)
+      .filter((n) => n.length > 0);
 
     if (debug) {
       logger.debug(`Removing blocks: ${blockNames.join(", ")}`);
@@ -158,16 +166,14 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     }
 
     if (debug) {
-      logger.debug(
-        `Removed ${stats.removed} block(s) (${stats.orphans} orphans) from ${file}`,
-      );
+      logger.debug(`Removed ${stats.removed} block(s) (${stats.orphans} orphans) from ${file}`);
     }
 
     return { status: "removed", removalStats: stats, originalContent };
   }
 
   const blockExists = fileContent.includes(opener);
-  const wouldChange = blockWouldChange(fileContent, inputBlock, opener, closer);
+  const wouldChange = blockWouldChange(fileContent, processedInputBlock, opener, closer);
   const state = detectBlockState(ctx.fileExists, blockExists, wouldChange);
 
   if (mode && mode !== "none") {
@@ -189,7 +195,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
   const result = parseAndInsertBlock(fileContent, {
     opener,
     closer,
-    inputBlock,
+    inputBlock: processedInputBlock,
     before: before === true ? undefined : before,
     after: after === true ? undefined : after,
     appendNewline,

@@ -8,6 +8,7 @@ const defaultOptions: Readonly<BlockInFileOptions> = Object.freeze({
   debug: false,
   diff: undefined,
   dos: false,
+  envsubst: false,
   input: undefined,
   markerStart: "start",
   markerEnd: "end",
