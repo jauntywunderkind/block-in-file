@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { defaultOptions, getDefaultOptions } from "../defaults.ts";
+import { defaultOptions, getDefaultOptions } from "../src/defaults.ts";
 
 describe("defaults", () => {
   describe("defaultOptions", () => {

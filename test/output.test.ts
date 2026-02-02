@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatOutputs, generateDiff } from "../output.ts";
+import { formatOutputs, generateDiff } from "../src/output.ts";
 
 describe("output utilities", () => {
   describe("formatOutputs", () => {
