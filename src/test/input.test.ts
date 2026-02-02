@@ -22,8 +22,8 @@ function createOpt(
 
 describe("input utilities", () => {
   describe("get", () => {
-    const source = { a: 1, b: 2 };
-    const defaults = { a: 10, b: 20, c: 30 };
+    const source: Partial<{ a: number; b: number; c: number }> = { a: 1, b: 2 };
+    const defaults: Partial<{ a: number; b: number; c: number }> = { a: 10, b: 20, c: 30 };
 
     it("returns source value when present", () => {
       expect(get(source, defaults, "a")).toBe(1);
@@ -52,7 +52,7 @@ describe("input utilities", () => {
     });
 
     it("prefers explicit undefined in source over default", () => {
-      const sourceWithUndefined = { a: undefined };
+      const sourceWithUndefined: Partial<{ a: number; b: number; c: number }> = { a: undefined };
       expect(get(sourceWithUndefined, defaults, "a")).toBe(10);
     });
   });

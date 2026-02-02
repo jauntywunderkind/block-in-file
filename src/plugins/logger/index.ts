@@ -25,7 +25,7 @@ export default function logger() {
           console.debug(`[DEBUG] ${message}`);
         }
       },
-      enabled: ctx.values.debug ?? false,
+      enabled: (ctx.values.debug as boolean | undefined) ?? false,
     }),
   });
 }

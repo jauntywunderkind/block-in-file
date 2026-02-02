@@ -36,7 +36,7 @@ export async function openInput(file: string, opts?: InputOptions): Promise<fs.F
 export async function readInput(file: string, opts?: InputOptions): Promise<string> {
   const inputStream = await openInput(file, opts);
   if (typeof inputStream === "object" && "readable" in inputStream) {
-    const reader = inputStream.readable.getReader();
+    const reader = (inputStream.readable as ReadableStream<Uint8Array>).getReader();
     const chunks: Uint8Array[] = [];
 
     let done = false;

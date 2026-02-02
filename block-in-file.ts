@@ -62,7 +62,7 @@ const command = define<{
       try {
         fileContent = await io.readFile(file);
       } catch {
-        if (!configExt.create && configExt.create !== "file") {
+        if (!configExt.create) {
           throw new Error(`File does not exist and create not enabled: ${file}`);
         }
         fileContent = "";
