@@ -7,10 +7,11 @@ import { parseAndInsertBlock } from "./block-parser.ts";
 import { formatOutputs } from "./output.ts";
 import { detectBlockState, shouldSkipForMode } from "./mode-handler.ts";
 import { runValidation } from "./validation.ts";
-import { detectConflicts } from "./conflict-detection.ts";
+import { detectConflicts, detectConflictsWithPattern } from "./conflict-detection.ts";
 import { parseAttributes, applyAttributesSafe } from "./attributes.ts";
 import { removeBlocks, type RemovalStats } from "./block-remover.ts";
 import { substitute } from "./envsubst.ts";
+import { generateTimestamp, parseTimestampFormat, type TimestampFormat } from "./timestamp.ts";
 
 export interface ProcessContext {
   file: string;
@@ -43,6 +44,7 @@ export interface ProcessContext {
   additive?: boolean;
   additiveBefore?: string;
   additiveAfter?: string;
+  timestamp?: string;
 }
 
 export interface ProcessResult {
@@ -84,6 +86,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     additive,
     additiveBefore,
     additiveAfter,
+    timestamp,
   } = ctx;
 
   const processedInputBlock = envsubst ? substitute(inputBlock, { mode: envsubst }) : inputBlock;
@@ -108,14 +111,33 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
   }
 
   if (additiveAfter) {
-    if (additiveAfter === "EOB" || additiveAfter === "EOF" || additiveAfter === "BOF") {
+    if (additiveAfter === "EOF" || additiveAfter === "EOB" || additiveAfter === "BOF") {
       parsedAdditiveAfter = additiveAfter;
     } else {
       parsedAdditiveAfter = new RegExp(additiveAfter);
     }
   }
 
-  const conflictResult = detectConflicts(fileContent, opener, closer, logger);
+  const timestampFormat = parseTimestampFormat(timestamp);
+  let actualOpener = opener;
+  let actualCloser = closer;
+  let openerPattern: RegExp | undefined;
+  let closerPattern: RegExp | undefined;
+
+  if (timestampFormat) {
+    const ts = generateTimestamp(timestampFormat);
+    actualOpener = `${opener} ${ts}`;
+    actualCloser = `${closer} ${ts}`;
+
+    const openerBase = opener.replace(/\s+/g, "\\s+");
+    const closerBase = closer.replace(/\s+/g, "\\s+");
+    openerPattern = new RegExp(`^\\s*${openerBase}(\\s+[0-9TZ:.-]+)?\\s*$`);
+    closerPattern = new RegExp(`^\\s*${closerBase}(\\s+[0-9TZ:.-]+)?\\s*$`);
+  }
+
+  const conflictResult = timestampFormat
+    ? detectConflictsWithPattern(fileContent, opener, closer, openerPattern!, closerPattern!, logger)
+    : detectConflicts(fileContent, opener, closer, logger);
   if (conflictResult.hasConflicts) {
     throw new Error(
       `File conflicts detected:\n${conflictResult.conflicts.map((c) => c.message).join("\n")}`,
@@ -222,8 +244,8 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
   }
 
   const result = parseAndInsertBlock(fileContent, {
-    opener,
-    closer,
+    opener: actualOpener,
+    closer: actualCloser,
     inputBlock: processedInputBlock,
     before: before === true ? undefined : before,
     after: after === true ? undefined : after,
@@ -231,6 +253,8 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     additive,
     additiveBefore: parsedAdditiveBefore,
     additiveAfter: parsedAdditiveAfter,
+    openerPattern,
+    closerPattern,
   });
 
   const outputText = formatOutputs(result.outputs, dos);

@@ -41,6 +41,7 @@ export interface ConfigExtension {
   additive?: boolean;
   additiveBefore?: string;
   additiveAfter?: string;
+  timestamp?: string;
 }
 
 export default function config() {
@@ -184,6 +185,10 @@ export default function config() {
         description:
           "Position to add missing lines in additive mode (regex, EOF for end of file, or EOB for end of block)",
       });
+      ctx.addGlobalOption("timestamp", {
+        type: "string",
+        description: "Add timestamp to block markers (default: epoch-nano, options: epoch-nano, epoch-sec, iso8601)",
+      });
     },
     extension: (ctx): ConfigExtension => {
       const createValue = ctx.values.create as string | undefined;
@@ -261,6 +266,7 @@ export default function config() {
         additive: ctx.values.additive as boolean | undefined,
         additiveBefore: ctx.values["additive-before"] as string | undefined,
         additiveAfter: ctx.values["additive-after"] as string | undefined,
+        timestamp: ctx.values.timestamp as string | undefined,
       };
     },
   });

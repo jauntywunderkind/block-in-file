@@ -99,6 +99,7 @@ const command = define<{
         additive: configExt.additive,
         additiveBefore: configExt.additiveBefore,
         additiveAfter: configExt.additiveAfter,
+        timestamp: configExt.timestamp,
       };
 
       const result = await processFile(processContext);

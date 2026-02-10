@@ -21,6 +21,7 @@ export interface BlockInFileOptions {
   additive?: boolean;
   additiveBefore?: string;
   additiveAfter?: string;
+  timestamp?: string;
 }
 
 export interface ParseResult {

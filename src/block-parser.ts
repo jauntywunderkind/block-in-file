@@ -10,10 +10,12 @@ export interface ParseOptions {
   additive?: boolean;
   additiveBefore?: RegExp | "EOB" | "EOF" | "BOF";
   additiveAfter?: RegExp | "EOB" | "EOF" | "BOF";
+  openerPattern?: RegExp;
+  closerPattern?: RegExp;
 }
 
 export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): ParseResult {
-  const { opener, closer, inputBlock, before, after, appendNewline, additive, additiveBefore, additiveAfter } = opts;
+  const { opener, closer, inputBlock, before, after, appendNewline, additive, additiveBefore, additiveAfter, openerPattern, closerPattern } = opts;
   const match = before || after;
   const outputs: string[] = [];
   const lines = fileContent.split("\n");
@@ -28,6 +30,20 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
 
   const inputLines = inputBlock.split("\n");
 
+  const isOpener = (line: string) => {
+    if (openerPattern) {
+      return openerPattern.test(line);
+    }
+    return line === opener;
+  };
+
+  const isCloser = (line: string) => {
+    if (closerPattern) {
+      return closerPattern.test(line);
+    }
+    return line === closer;
+  };
+
   if (before === true) {
     outputs.push(opener, ...inputLines, closer);
     if (appendNewline) {
@@ -40,11 +56,11 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
     const isOpen = opened !== undefined;
     i++;
 
-    if (!isOpen && line === opener) {
+    if (!isOpen && isOpener(line)) {
       opened = outputs.length;
       blockStartIndex = outputs.length;
     } else if (isOpen) {
-      if (line !== closer) {
+      if (!isCloser(line)) {
         if (additive) {
           blockContentLines.push(line);
         }

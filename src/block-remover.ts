@@ -48,15 +48,17 @@ export function removeBlocks(opts: BlockRemoverOptions): { content: string; stat
   let currentBlockName: string | null = null;
 
   const openerRegex = new RegExp(
-    `^${escapeRegex(comment)}\\s+(\\S+)\\s+${escapeRegex(markerStart)}`,
+    `^${escapeRegex(comment)}\\s+(\\S+)\\s+${escapeRegex(markerStart)}(\\s+[0-9TZ:.-]+)?$`,
   );
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
     if (inBlock) {
-      const expectedCloser = `${comment} ${currentBlockName || ""} ${markerEnd}`;
-      const isCloser = line === expectedCloser;
+      const closerRegex = new RegExp(
+        `^${escapeRegex(comment)}\\s+${escapeRegex(currentBlockName || "")}\\s+${escapeRegex(markerEnd)}(\\s+[0-9TZ:.-]+)?$`,
+      );
+      const isCloser = closerRegex.test(line);
 
       if (isCloser) {
         const isTargetBlock = currentBlockName && blockNames.includes(currentBlockName);
