@@ -40,6 +40,9 @@ export interface ProcessContext {
   removeAll?: string;
   removeOrphans?: boolean;
   envsubst?: EnvsubstMode;
+  additive?: boolean;
+  additiveBefore?: string;
+  additiveAfter?: string;
 }
 
 export interface ProcessResult {
@@ -78,12 +81,38 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     removeAll,
     removeOrphans,
     envsubst,
+    additive,
+    additiveBefore,
+    additiveAfter,
   } = ctx;
 
   const processedInputBlock = envsubst ? substitute(inputBlock, { mode: envsubst }) : inputBlock;
 
   if (debug) {
     logger.debug(`Processing file: ${file}`);
+  }
+
+  if (additiveBefore && additiveAfter) {
+    throw new Error("Cannot specify both --additive-before and --additive-after");
+  }
+
+  let parsedAdditiveBefore: RegExp | "EOB" | "EOF" | "BOF" | undefined;
+  let parsedAdditiveAfter: RegExp | "EOB" | "EOF" | "BOF" | undefined;
+
+  if (additiveBefore) {
+    if (additiveBefore === "EOB" || additiveBefore === "EOF" || additiveBefore === "BOF") {
+      parsedAdditiveBefore = additiveBefore;
+    } else {
+      parsedAdditiveBefore = new RegExp(additiveBefore);
+    }
+  }
+
+  if (additiveAfter) {
+    if (additiveAfter === "EOB" || additiveAfter === "EOF" || additiveAfter === "BOF") {
+      parsedAdditiveAfter = additiveAfter;
+    } else {
+      parsedAdditiveAfter = new RegExp(additiveAfter);
+    }
   }
 
   const conflictResult = detectConflicts(fileContent, opener, closer, logger);
@@ -199,6 +228,9 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     before: before === true ? undefined : before,
     after: after === true ? undefined : after,
     appendNewline,
+    additive,
+    additiveBefore: parsedAdditiveBefore,
+    additiveAfter: parsedAdditiveAfter,
   });
 
   const outputText = formatOutputs(result.outputs, dos);

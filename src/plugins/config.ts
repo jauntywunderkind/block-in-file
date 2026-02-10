@@ -8,6 +8,7 @@ export type CreateArg = boolean | "file" | "block";
 export type ModeArg = "ensure" | "only" | "none";
 export type StateOnFailMode = "iterate" | "fail" | "overwrite";
 export type EnvsubstMode = "recursive" | "non-recursive" | false;
+export type AdditiveLocationArg = "before" | "after";
 
 export interface ConfigExtension {
   name: string;
@@ -37,6 +38,9 @@ export interface ConfigExtension {
   attributes?: string;
   removeAll?: string;
   removeOrphans?: boolean;
+  additive?: boolean;
+  additiveBefore?: string;
+  additiveAfter?: string;
 }
 
 export default function config() {
@@ -165,6 +169,21 @@ export default function config() {
         description:
           "Enable environment variable substitution (true=recursive, non-recursive, false)",
       });
+      ctx.addGlobalOption("additive", {
+        type: "boolean",
+        description:
+          "Additive mode: ensure all input lines are in block, adding missing lines instead of replacing",
+      });
+      ctx.addGlobalOption("additive-before", {
+        type: "string",
+        description:
+          "Position to add missing lines in additive mode (regex, BOF for beginning of file, or EOB/EOF for end of block)",
+      });
+      ctx.addGlobalOption("additive-after", {
+        type: "string",
+        description:
+          "Position to add missing lines in additive mode (regex, EOF for end of file, or EOB for end of block)",
+      });
     },
     extension: (ctx): ConfigExtension => {
       const createValue = ctx.values.create as string | undefined;
@@ -239,6 +258,9 @@ export default function config() {
         attributes: ctx.values.attributes as string | undefined,
         removeAll: ctx.values["remove-all"] as string | undefined,
         removeOrphans: ctx.values["remove-orphans"] as boolean | undefined,
+        additive: ctx.values.additive as boolean | undefined,
+        additiveBefore: ctx.values["additive-before"] as string | undefined,
+        additiveAfter: ctx.values["additive-after"] as string | undefined,
       };
     },
   });

@@ -96,6 +96,9 @@ const command = define<{
         removeAll: configExt.removeAll,
         removeOrphans: configExt.removeOrphans,
         envsubst: configExt.envsubst,
+        additive: configExt.additive,
+        additiveBefore: configExt.additiveBefore,
+        additiveAfter: configExt.additiveAfter,
       };
 
       const result = await processFile(processContext);

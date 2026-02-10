@@ -7,10 +7,13 @@ export interface ParseOptions {
   before?: RegExp | boolean;
   after?: RegExp | boolean;
   appendNewline?: boolean;
+  additive?: boolean;
+  additiveBefore?: RegExp | "EOB" | "EOF" | "BOF";
+  additiveAfter?: RegExp | "EOB" | "EOF" | "BOF";
 }
 
 export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): ParseResult {
-  const { opener, closer, inputBlock, before, after, appendNewline } = opts;
+  const { opener, closer, inputBlock, before, after, appendNewline, additive, additiveBefore, additiveAfter } = opts;
   const match = before || after;
   const outputs: string[] = [];
   const lines = fileContent.split("\n");
@@ -19,9 +22,14 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
   let opened: number | undefined;
   let matched = -1;
   let i = -1;
+  let blockContentLines: string[] = [];
+  let blockStartIndex = -1;
+  let blockEndIndex = -1;
+
+  const inputLines = inputBlock.split("\n");
 
   if (before === true) {
-    outputs.push(opener, inputBlock, closer);
+    outputs.push(opener, ...inputLines, closer);
     if (appendNewline) {
       outputs.push("");
     }
@@ -34,18 +42,62 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
 
     if (!isOpen && line === opener) {
       opened = outputs.length;
+      blockStartIndex = outputs.length;
     } else if (isOpen) {
       if (line !== closer) {
+        if (additive) {
+          blockContentLines.push(line);
+        }
         continue;
       }
 
       opened = undefined;
+      blockEndIndex = outputs.length;
 
       if (done) {
         continue;
       }
 
-      outputs.push(opener, inputBlock, closer);
+      if (additive) {
+        const missingLines = inputLines.filter((line) => !blockContentLines.includes(line));
+        
+        if (missingLines.length > 0 || blockContentLines.length === 0) {
+          let newContentLines: string[];
+          
+          if (blockContentLines.length === 0) {
+            newContentLines = inputLines;
+          } else if (additiveAfter === "EOB" || additiveAfter === "EOF" || (!additiveBefore && !additiveAfter)) {
+            newContentLines = [...blockContentLines, ...missingLines];
+          } else if (additiveBefore === "BOF") {
+            newContentLines = [...missingLines, ...blockContentLines];
+          } else if (additiveAfter && typeof additiveAfter === "object" && "test" in additiveAfter) {
+            let insertIndex = blockContentLines.findIndex((l) => additiveAfter.test(l));
+            if (insertIndex === -1) insertIndex = blockContentLines.length;
+            newContentLines = [
+              ...blockContentLines.slice(0, insertIndex + 1),
+              ...missingLines,
+              ...blockContentLines.slice(insertIndex + 1),
+            ];
+          } else if (additiveBefore && typeof additiveBefore === "object" && "test" in additiveBefore) {
+            let insertIndex = blockContentLines.findIndex((l) => additiveBefore.test(l));
+            if (insertIndex === -1) insertIndex = 0;
+            newContentLines = [
+              ...blockContentLines.slice(0, insertIndex),
+              ...missingLines,
+              ...blockContentLines.slice(insertIndex),
+            ];
+          } else {
+            newContentLines = [...blockContentLines, ...missingLines];
+          }
+          
+          outputs.push(opener, ...newContentLines, closer);
+        } else {
+          outputs.push(opener, ...blockContentLines, closer);
+        }
+      } else {
+        outputs.push(opener, ...inputLines, closer);
+      }
+      
       if (appendNewline) {
         outputs.push("");
       }
@@ -60,7 +112,7 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
   }
 
   if (opened !== undefined) {
-    outputs.push(opener, inputBlock, closer);
+    outputs.push(opener, ...inputLines, closer);
     if (appendNewline) {
       outputs.push("");
     }
@@ -71,9 +123,9 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
     if (matched === -1) {
       matched = i;
     }
-    outputs.splice(matched + (after ? 1 : 0), 0, opener, inputBlock, closer);
+    outputs.splice(matched + (after ? 1 : 0), 0, opener, ...inputLines, closer);
     if (appendNewline) {
-      outputs.splice(matched + (after ? 1 : 0) + 3, 0, "");
+      outputs.splice(matched + (after ? 1 : 0) + inputLines.length + 2, 0, "");
     }
   }
 

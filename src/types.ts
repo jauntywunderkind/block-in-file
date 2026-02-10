@@ -18,6 +18,9 @@ export interface BlockInFileOptions {
   markerEnd: string;
   name: string;
   output?: string;
+  additive?: boolean;
+  additiveBefore?: string;
+  additiveAfter?: string;
 }
 
 export interface ParseResult {
