@@ -88,6 +88,9 @@ echo use before or after regexp to place blocks | block-in-file sample.txt --bef
                                  or EOB for end of block)
     --timestamp <format>        - Add timestamp to block markers (default: epoch-nano, options: epoch-nano,
                                  epoch-sec, iso8601)
+    --tag-mode <mode>           - Tag handling strategy: merge (default) or replace. Merge preserves
+                                 existing tags not being updated, replace removes all
+                                 existing tags and uses only new tags
 ```
 
 ## Tag System
@@ -102,5 +105,20 @@ content
 # blockinfile end [timestamp:1770717943385000000]
 ```
 
-The tags are automatically stripped when matching blocks, so updates work correctly even when timestamps or other tags change between runs. Multiple tags can be added, and custom tag types can be implemented in the future.
+ The tags are automatically stripped when matching blocks, so updates work correctly even when timestamps or other tags change between runs. Multiple tags can be added, and custom tag types can be implemented in the future.
+
+## Tag Mode
+
+The `--tag-mode` option controls how existing tags are handled when updating blocks:
+
+- **merge** (default): Preserves existing tags that aren't being updated. New tags overwrite tags with the same name.
+  - If a block has `[foo]` and you add `--timestamp`, the result is `[foo] [timestamp:...]`.
+  - If a block has `[timestamp:123]` and you add `--timestamp`, the old timestamp is replaced.
+
+- **replace**: Removes all existing tags and uses only the newly specified tags.
+  - If a block has `[foo] [timestamp:123]` and you use `--tag-mode replace --timestamp`,
+    the result is `[timestamp:...]` (the `[foo]` tag is removed).
+
+This allows you to maintain custom metadata on blocks while updating them programmatically.
+
 
