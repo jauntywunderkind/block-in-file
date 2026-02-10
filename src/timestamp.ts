@@ -1,4 +1,4 @@
-import { Tag, generateTag as generateTagFromUtil } from "./tags.ts";
+import { Tag, generateTag as generateTagFromUtil } from "./tags/tags.ts";
 
 export type TimestampFormat = "epoch-nano" | "epoch-sec" | "iso8601";
 

@@ -1,7 +1,4 @@
-export interface Tag {
-  name: string;
-  value: string;
-}
+import type { Tag } from "./types.ts";
 
 export function generateTag(name: string, value: string): string {
   return `[${name}:${value}]`;

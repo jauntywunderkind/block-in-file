@@ -1,5 +1,5 @@
 import type { ParseResult } from "./types.ts";
-import { stripTagsForMatching } from "./tags.ts";
+import { stripTagsForMatching } from "./tags/tags.ts";
 
 export interface ParseOptions {
   opener: string;

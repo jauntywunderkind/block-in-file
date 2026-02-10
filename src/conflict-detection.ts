@@ -1,5 +1,5 @@
 import type { LoggerExtension } from "./plugins/logger.ts";
-import { stripTagsForMatching } from "./tags.ts";
+import { stripTagsForMatching } from "./tags/tags.ts";
 
 export interface Conflict {
   type: "duplicate" | "nested" | "mismatched";

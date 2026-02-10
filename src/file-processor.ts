@@ -12,7 +12,9 @@ import { parseAttributes, applyAttributesSafe } from "./attributes.ts";
 import { removeBlocks, type RemovalStats } from "./block-remover.ts";
 import { substitute } from "./envsubst.ts";
 import { generateTimestampTag, parseTimestampFormat, type TimestampFormat } from "./timestamp.ts";
-import { stripTagsForMatching, addTags, type Tag } from "./tags.ts";
+import { stripTagsForMatching, addTags, parseTags, type Tag } from "./tags/tags.ts";
+import { applyTagMode } from "./tags/tag-merger.ts";
+import type { TagMode } from "./tags/tag-mode.ts";
 import { escapeRegex } from "./block-remover.ts";
 
 export interface ProcessContext {
@@ -47,6 +49,7 @@ export interface ProcessContext {
   additiveBefore?: string;
   additiveAfter?: string;
   timestamp?: string;
+  tagMode?: string;
 }
 
 export interface ProcessResult {
@@ -89,6 +92,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     additiveBefore,
     additiveAfter,
     timestamp,
+    tagMode,
   } = ctx;
 
   const processedInputBlock = envsubst ? substitute(inputBlock, { mode: envsubst }) : inputBlock;
@@ -121,22 +125,50 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
   }
 
   const timestampFormat = parseTimestampFormat(timestamp);
-  const tags: Tag[] = [];
 
-  if (timestampFormat) {
-    tags.push({ name: "timestamp", value: generateTimestampTag(timestampFormat).replace(/^\[timestamp:/, "").replace(/\]$/, "") });
+  let parsedTagMode: TagMode = "merge";
+  if (tagMode) {
+    if (tagMode === "merge" || tagMode === "replace") {
+      parsedTagMode = tagMode;
+    }
   }
 
-  let actualOpener = tags.length > 0 ? addTags(opener, tags) : opener;
-  let actualCloser = tags.length > 0 ? addTags(closer, tags) : closer;
+  let newTags: Tag[] = [];
 
-  const openerBase = opener.replace(/\s+/g, "\\s+");
-  const closerBase = closer.replace(/\s+/g, "\\s+");
-  const openerPattern = new RegExp(`^\\s*${openerBase}(\\s+\\[[a-zA-Z0-9_-]+:[^\\[\\]]+\\])*\\s*$`);
-  const closerPattern = new RegExp(`^\\s*${closerBase}(\\s+\\[[a-zA-Z0-9_-]+:[^\\[\\]]+\\])*\\s*$`);
+  if (timestampFormat) {
+    newTags.push({ name: "timestamp", value: generateTimestampTag(timestampFormat).replace(/^\[timestamp:/, "").replace(/\]$/, "") });
+  }
 
-  const conflictResult = tags.length > 0
-    ? detectConflictsWithPattern(fileContent, opener, closer, openerPattern, closerPattern, logger)
+  let existingTags: Tag[] = [];
+  const lines = fileContent.split("\n");
+
+  for (const line of lines) {
+    const strippedLine = stripTagsForMatching(line.trim());
+    if (strippedLine === opener) {
+      existingTags = parseTags(line);
+      break;
+    }
+  }
+
+  const finalTags = applyTagMode(existingTags, newTags, parsedTagMode);
+
+  let actualOpener = opener;
+  let actualCloser = closer;
+  let openerPattern: RegExp | undefined;
+  let closerPattern: RegExp | undefined;
+
+  if (finalTags.length > 0) {
+    actualOpener = addTags(opener, finalTags);
+    actualCloser = addTags(closer, finalTags);
+
+    const openerBase = opener.replace(/\s+/g, "\\s+");
+    const closerBase = closer.replace(/\s+/g, "\\s+");
+    openerPattern = new RegExp(`^\\s*${openerBase}(\\s+\\[[a-zA-Z0-9_-]+:[^\\[\\]]+\\])*\\s*$`);
+    closerPattern = new RegExp(`^\\s*${closerBase}(\\s+\\[[a-zA-Z0-9_-]+:[^\\[\\]]+\\])*\\s*$`);
+  }
+
+  const conflictResult = finalTags.length > 0
+    ? detectConflictsWithPattern(fileContent, opener, closer, openerPattern!, closerPattern!, logger)
     : detectConflicts(fileContent, opener, closer, logger);
   if (conflictResult.hasConflicts) {
     throw new Error(
@@ -253,8 +285,8 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     additive,
     additiveBefore: parsedAdditiveBefore,
     additiveAfter: parsedAdditiveAfter,
-    actualOpener: tags.length > 0 ? actualOpener : undefined,
-    actualCloser: tags.length > 0 ? actualCloser : undefined,
+    actualOpener: finalTags.length > 0 ? actualOpener : undefined,
+    actualCloser: finalTags.length > 0 ? actualCloser : undefined,
   });
 
   const outputText = formatOutputs(result.outputs, dos);

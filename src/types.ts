@@ -22,6 +22,7 @@ export interface BlockInFileOptions {
   additiveBefore?: string;
   additiveAfter?: string;
   timestamp?: string;
+  tagMode?: string;
 }
 
 export interface ParseResult {

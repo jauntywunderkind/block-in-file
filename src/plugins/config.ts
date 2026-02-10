@@ -9,6 +9,7 @@ export type ModeArg = "ensure" | "only" | "none";
 export type StateOnFailMode = "iterate" | "fail" | "overwrite";
 export type EnvsubstMode = "recursive" | "non-recursive" | false;
 export type AdditiveLocationArg = "before" | "after";
+export type TagModeArg = "merge" | "replace";
 
 export interface ConfigExtension {
   name: string;
@@ -42,6 +43,7 @@ export interface ConfigExtension {
   additiveBefore?: string;
   additiveAfter?: string;
   timestamp?: string;
+  tagMode?: TagModeArg;
 }
 
 export default function config() {
@@ -189,6 +191,10 @@ export default function config() {
         type: "string",
         description: "Add timestamp to block markers (default: epoch-nano, options: epoch-nano, epoch-sec, iso8601)",
       });
+      ctx.addGlobalOption("tag-mode", {
+        type: "string",
+        description: "Tag handling strategy: merge (default) or replace. Merge preserves existing tags not being updated",
+      });
     },
     extension: (ctx): ConfigExtension => {
       const createValue = ctx.values.create as string | undefined;
@@ -267,6 +273,7 @@ export default function config() {
         additiveBefore: ctx.values["additive-before"] as string | undefined,
         additiveAfter: ctx.values["additive-after"] as string | undefined,
         timestamp: ctx.values.timestamp as string | undefined,
+        tagMode: ctx.values["tag-mode"] as TagModeArg | undefined,
       };
     },
   });
