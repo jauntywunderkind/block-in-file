@@ -58,7 +58,7 @@ echo use before or after regexp to place blocks | block-in-file sample.txt --bef
 
 ```
   Usage:   blockinfile <files>
-  Version: 0.1.0
+  Version: 1.0.0
 
   Description:
 
@@ -77,9 +77,30 @@ echo use before or after regexp to place blocks | block-in-file sample.txt --bef
     --dos                      - Use dos line endings
     -i, --input     <input>    - Input file to read contents from, or - from stdout                         (Default: "-")
     -o, --output    <output>   - Output file, or - for stdout, or -- for no output, or --- for overwriting  (Default: "---")
-                                 existing file
-    -b, --before    [before]   - String or regex to insert before, or at beginning if no argument
-    -a, --after     [after]    - String or regex to insert after, or at end if no argument
-    --multi                    - Multi-line matching (not implemented)
-    --backup                   - Backup file if changes (not implemented)
+                                  existing file
+    -b, --before    <before>   - String or regex to insert before (regex or BOF for beginning of file)
+    -a, --after     <after>    - String or regex to insert after (regex or EOF for end of file)
+    --additive                 - Additive mode: ensure all input lines are in block, adding missing lines
+                                 instead of replacing
+    --additive-before <value>  Position to add missing lines in additive mode (regex, BOF for beginning of
+                                 file, or EOB/EOF for end of block)
+    --additive-after  <value>   Position to add missing lines in additive mode (regex, EOF for end of file,
+                                 or EOB for end of block)
+    --timestamp <format>        - Add timestamp to block markers (default: epoch-nano, options: epoch-nano,
+                                 epoch-sec, iso8601)
 ```
+
+## Tag System
+
+Block markers support optional tags appended at the end in the format `[name:value]`. Tags are ignored when matching blocks for replacement, allowing metadata to be added without affecting block identity.
+
+For example, with `--timestamp epoch-nano`:
+
+```
+# blockinfile start [timestamp:1770717943385000000]
+content
+# blockinfile end [timestamp:1770717943385000000]
+```
+
+The tags are automatically stripped when matching blocks, so updates work correctly even when timestamps or other tags change between runs. Multiple tags can be added, and custom tag types can be implemented in the future.
+
