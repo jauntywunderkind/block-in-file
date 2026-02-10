@@ -25,9 +25,11 @@ describe("input utilities", () => {
     const source: Partial<{ a: number; b: number; c: number }> = { a: 1, b: 2 };
     const defaults: Partial<{ a: number; b: number; c: number }> = { a: 10, b: 20, c: 30 };
 
-    it("returns source value when present", () => {
-      expect(get(source, defaults, "a")).toBe(1);
-      expect(get(source, defaults, "b")).toBe(2);
+    it.each([
+      { key: "a" as const, expected: 1 },
+      { key: "b" as const, expected: 2 },
+    ])("returns source value for key $key", ({ key, expected }) => {
+      expect(get(source, defaults, key)).toBe(expected);
     });
 
     it("falls back to defaults when source value missing", () => {
@@ -43,8 +45,11 @@ describe("input utilities", () => {
       expect(result).toEqual([1, 2, 30]);
     });
 
-    it("handles empty source", () => {
-      expect(get({}, defaults, "a")).toBe(10);
+    it.each([
+      { source: {}, expected: 10 },
+      { source: source, expected: 1 },
+    ])("handles source value for key 'a'", ({ source: testSource, expected }) => {
+      expect(get(testSource, defaults, "a")).toBe(expected);
     });
 
     it("handles empty defaults", () => {
@@ -58,26 +63,24 @@ describe("input utilities", () => {
   });
 
   describe("createOpt", () => {
-    it("returns create:true for value=true", () => {
-      expect(createOpt(true, "file")).toEqual({ create: true });
-      expect(createOpt(true, "block")).toEqual({ create: true });
+    it.each([
+      { value: true as const, target: "file" as const, expected: { create: true } },
+      { value: true as const, target: "block" as const, expected: { create: true } },
+      { value: 1 as const, target: "file" as const, expected: { create: true } },
+      { value: 1 as const, target: "block" as const, expected: { create: true } },
+      { value: "file" as const, target: "file" as const, expected: { create: true } },
+      { value: "block" as const, target: "block" as const, expected: { create: true } },
+    ])("returns create:true when value=$value, target=$target", ({ value, target, expected }) => {
+      expect(createOpt(value, target)).toEqual(expected);
     });
 
-    it("returns create:true for value=1", () => {
-      expect(createOpt(1, "file")).toEqual({ create: true });
-      expect(createOpt(1, "block")).toEqual({ create: true });
-    });
-
-    it("returns create:true when value matches target", () => {
-      expect(createOpt("file", "file")).toEqual({ create: true });
-      expect(createOpt("block", "block")).toEqual({ create: true });
-    });
-
-    it("returns undefined when value does not match", () => {
-      expect(createOpt("file", "block")).toBeUndefined();
-      expect(createOpt("block", "file")).toBeUndefined();
-      expect(createOpt(false, "file")).toBeUndefined();
-      expect(createOpt(0, "file")).toBeUndefined();
+    it.each([
+      { value: "file" as const, target: "block" as const },
+      { value: "block" as const, target: "file" as const },
+      { value: false as const, target: "file" as const },
+      { value: 0 as const, target: "file" as const },
+    ])("returns undefined when value=$value, target=$target", ({ value, target }) => {
+      expect(createOpt(value, target)).toBeUndefined();
     });
   });
 });

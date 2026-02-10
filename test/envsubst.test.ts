@@ -9,39 +9,27 @@ describe("envsubst", () => {
   });
 
   describe("basic substitution with ${VAR} syntax", () => {
-    it("should substitute a single environment variable", () => {
-      process.env.TEST_VAR = "hello";
-      const result = substitute("content: ${TEST_VAR}", { mode: "non-recursive" });
-      expect(result).toBe("content: hello");
-    });
-
-    it("should substitute multiple variables", () => {
-      process.env.VAR1 = "foo";
-      process.env.VAR2 = "bar";
-      const result = substitute("${VAR1} and ${VAR2}", { mode: "non-recursive" });
-      expect(result).toBe("foo and bar");
-    });
-
-    it("should substitute in different positions", () => {
-      process.env.PREFIX = "pre";
-      process.env.SUFFIX = "post";
-      const result = substitute("${PREFIX}-middle-${SUFFIX}", { mode: "non-recursive" });
-      expect(result).toBe("pre-middle-post");
+    it.each([
+      { input: "content: ${TEST_VAR}", vars: { TEST_VAR: "hello" }, expected: "content: hello" },
+      { input: "${VAR1} and ${VAR2}", vars: { VAR1: "foo", VAR2: "bar" }, expected: "foo and bar" },
+      { input: "${PREFIX}-middle-${SUFFIX}", vars: { PREFIX: "pre", SUFFIX: "post" }, expected: "pre-middle-post" },
+    ])("should substitute: $input", ({ input, vars, expected }) => {
+      Object.assign(process.env, vars);
+      const result = substitute(input, { mode: "non-recursive" });
+      expect(result).toBe(expected);
+      Object.keys(vars).forEach(key => delete process.env[key]);
     });
   });
 
   describe("basic substitution with $VAR syntax", () => {
-    it("should substitute a single environment variable", () => {
-      process.env.TEST_VAR = "hello";
-      const result = substitute("content: $TEST_VAR", { mode: "non-recursive" });
-      expect(result).toBe("content: hello");
-    });
-
-    it("should substitute multiple variables", () => {
-      process.env.VAR1 = "foo";
-      process.env.VAR2 = "bar";
-      const result = substitute("$VAR1 and $VAR2", { mode: "non-recursive" });
-      expect(result).toBe("foo and bar");
+    it.each([
+      { input: "content: $TEST_VAR", vars: { TEST_VAR: "hello" }, expected: "content: hello" },
+      { input: "$VAR1 and $VAR2", vars: { VAR1: "foo", VAR2: "bar" }, expected: "foo and bar" },
+    ])("should substitute: $input", ({ input, vars, expected }) => {
+      Object.assign(process.env, vars);
+      const result = substitute(input, { mode: "non-recursive" });
+      expect(result).toBe(expected);
+      Object.keys(vars).forEach(key => delete process.env[key]);
     });
   });
 
@@ -116,14 +104,12 @@ describe("envsubst", () => {
   });
 
   describe("undefined variables", () => {
-    it("should replace undefined variables with empty string with ${VAR}", () => {
-      const result = substitute("content: ${UNDEFINED_VAR}", { mode: "non-recursive" });
-      expect(result).toBe("content: ");
-    });
-
-    it("should replace undefined variables with empty string with $VAR", () => {
-      const result = substitute("content: $UNDEFINED_VAR", { mode: "non-recursive" });
-      expect(result).toBe("content: ");
+    it.each([
+      { input: "content: ${UNDEFINED_VAR}", expected: "content: " },
+      { input: "content: $UNDEFINED_VAR", expected: "content: " },
+    ])("should replace undefined variables with empty string: $input", ({ input, expected }) => {
+      const result = substitute(input, { mode: "non-recursive" });
+      expect(result).toBe(expected);
     });
 
     it("should handle mix of defined and undefined variables", () => {
@@ -142,32 +128,29 @@ describe("envsubst", () => {
   });
 
   describe("edge cases", () => {
-    it("should handle empty string", () => {
-      const result = substitute("", { mode: "non-recursive" });
-      expect(result).toBe("");
+    it.each([
+      { input: "", expected: "" },
+      { input: "just plain text", expected: "just plain text" },
+    ])("should handle: $input", ({ input, expected }) => {
+      const result = substitute(input, { mode: "non-recursive" });
+      expect(result).toBe(expected);
     });
 
-    it("should handle string with no variables", () => {
-      const result = substitute("just plain text", { mode: "non-recursive" });
-      expect(result).toBe("just plain text");
-    });
-
-    it("should handle variable names with underscores", () => {
-      process.env.MY_LONG_VAR_NAME = "value";
-      const result = substitute("${MY_LONG_VAR_NAME}", { mode: "non-recursive" });
-      expect(result).toBe("value");
-    });
-
-    it("should handle variable names with numbers", () => {
-      process.env.VAR123 = "value";
-      const result = substitute("${VAR123}", { mode: "non-recursive" });
-      expect(result).toBe("value");
+    it.each([
+      { input: "${MY_LONG_VAR_NAME}", varName: "MY_LONG_VAR_NAME", value: "value", expected: "value" },
+      { input: "${VAR123}", varName: "VAR123", value: "value", expected: "value" },
+    ])("should handle variable names with special characters: $input", ({ input, varName, value, expected }) => {
+      process.env[varName] = value;
+      const result = substitute(input, { mode: "non-recursive" });
+      expect(result).toBe(expected);
+      delete process.env[varName];
     });
 
     it("should handle variables with empty values", () => {
       process.env.EMPTY_VAR = "";
       const result = substitute("prefix${EMPTY_VAR}suffix", { mode: "non-recursive" });
       expect(result).toBe("prefixsuffix");
+      delete process.env.EMPTY_VAR;
     });
   });
 

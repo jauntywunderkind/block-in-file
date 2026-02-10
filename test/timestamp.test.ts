@@ -6,19 +6,13 @@ import {
 } from "../src/timestamp.ts";
 
 describe("timestamp generation", () => {
-  it("should generate epoch-nano format", () => {
-    const timestamp = generateTimestampTag("epoch-nano");
-    expect(timestamp).toMatch(/^\[timestamp:\d+\]$/);
-  });
-
-  it("should generate epoch-sec format", () => {
-    const timestamp = generateTimestampTag("epoch-sec");
-    expect(timestamp).toMatch(/^\[timestamp:\d+\]$/);
-  });
-
-  it("should generate iso8601 format", () => {
-    const timestamp = generateTimestampTag("iso8601");
-    expect(timestamp).toMatch(/^\[timestamp:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\]$/);
+  it.each([
+    { format: "epoch-nano" as const, pattern: /^\[timestamp:\d+\]$/ },
+    { format: "epoch-sec" as const, pattern: /^\[timestamp:\d+\]$/ },
+    { format: "iso8601" as const, pattern: /^\[timestamp:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\]$/ },
+  ])("should generate $format format", ({ format, pattern }) => {
+    const timestamp = generateTimestampTag(format);
+    expect(timestamp).toMatch(pattern);
   });
 
   it("should generate epoch-nano with 6 extra zeros", () => {
@@ -49,19 +43,13 @@ describe("timestamp generation", () => {
 });
 
 describe("timestamp format parsing", () => {
-  it("should parse epoch-nano", () => {
-    const result = parseTimestampFormat("epoch-nano");
-    expect(result).toBe("epoch-nano");
-  });
-
-  it("should parse epoch-sec", () => {
-    const result = parseTimestampFormat("epoch-sec");
-    expect(result).toBe("epoch-sec");
-  });
-
-  it("should parse iso8601", () => {
-    const result = parseTimestampFormat("iso8601");
-    expect(result).toBe("iso8601");
+  it.each([
+    "epoch-nano",
+    "epoch-sec",
+    "iso8601",
+  ] as TimestampFormat[])("should parse $s", (format) => {
+    const result = parseTimestampFormat(format);
+    expect(result).toBe(format);
   });
 
   it("should return undefined for undefined input", () => {
@@ -69,14 +57,11 @@ describe("timestamp format parsing", () => {
     expect(result).toBeUndefined();
   });
 
-  it("should throw error for invalid format", () => {
-    expect(() => parseTimestampFormat("invalid")).toThrow(
-      "Invalid timestamp format: invalid. Valid options: epoch-nano, epoch-sec, iso8601",
-    );
-  });
-
-  it("should throw error with custom message for invalid format", () => {
-    expect(() => parseTimestampFormat("unknown")).toThrow("Invalid timestamp format: unknown");
+  it.each([
+    "invalid",
+    "unknown",
+  ])("should throw error for invalid format: $s", (format) => {
+    expect(() => parseTimestampFormat(format)).toThrow(`Invalid timestamp format: ${format}`);
   });
 });
 

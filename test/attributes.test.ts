@@ -3,19 +3,15 @@ import { parseAttributes, supportsChattr } from "../src/attributes.ts";
 
 describe("attributes", () => {
   describe("parseAttributes", () => {
-    it("parses single immutable attribute", () => {
-      const result = parseAttributes("+i");
-      expect(result).toEqual([{ mode: "+", attribute: "i" }]);
-    });
-
-    it("parses single append-only attribute", () => {
-      const result = parseAttributes("+a");
-      expect(result).toEqual([{ mode: "+", attribute: "a" }]);
-    });
-
-    it("parses remove immutable attribute", () => {
-      const result = parseAttributes("-i");
-      expect(result).toEqual([{ mode: "-", attribute: "i" }]);
+    it.each([
+      { input: "+i", expected: [{ mode: "+", attribute: "i" }] },
+      { input: "+a", expected: [{ mode: "+", attribute: "a" }] },
+      { input: "-i", expected: [{ mode: "-", attribute: "i" }] },
+      { input: "=i", expected: [{ mode: "=", attribute: "i" }] },
+      { input: "+I", expected: [{ mode: "+", attribute: "I" }] },
+    ])("parses $input", ({ input, expected }) => {
+      const result = parseAttributes(input);
+      expect(result).toEqual(expected);
     });
 
     it("parses multiple space-separated attributes", () => {
@@ -35,23 +31,11 @@ describe("attributes", () => {
       ]);
     });
 
-    it("parses exact set attribute", () => {
-      const result = parseAttributes("=i");
-      expect(result).toEqual([{ mode: "=", attribute: "i" }]);
-    });
-
-    it("parses uppercase attributes", () => {
-      const result = parseAttributes("+I");
-      expect(result).toEqual([{ mode: "+", attribute: "I" }]);
-    });
-
-    it("handles empty string", () => {
-      const result = parseAttributes("");
-      expect(result).toEqual([]);
-    });
-
-    it("handles whitespace only", () => {
-      const result = parseAttributes("   ");
+    it.each([
+      { input: "", description: "empty string" },
+      { input: "   ", description: "whitespace only" },
+    ])("handles $description", ({ input }) => {
+      const result = parseAttributes(input);
       expect(result).toEqual([]);
     });
 
@@ -63,38 +47,23 @@ describe("attributes", () => {
       ]);
     });
 
-    it("throws error for invalid mode", () => {
-      expect(() => parseAttributes("xi")).toThrow("Invalid attribute syntax: xi");
-    });
-
-    it("throws error for missing attribute", () => {
-      expect(() => parseAttributes("+")).toThrow("Invalid attribute syntax: +");
-    });
-
-    it("throws error for invalid attribute characters", () => {
-      expect(() => parseAttributes("+1")).toThrow("Invalid attribute syntax: +1");
-    });
-
-    it("throws error for attribute with space in mode", () => {
-      expect(() => parseAttributes("+ i")).toThrow(/Invalid attribute syntax/);
+    it.each([
+      { input: "xi", description: "invalid mode" },
+      { input: "+", description: "missing attribute" },
+      { input: "+1", description: "invalid attribute characters" },
+      { input: "+ i", description: "attribute with space in mode" },
+    ])("throws error for $description: $input", ({ input }) => {
+      expect(() => parseAttributes(input)).toThrow(/Invalid attribute syntax/);
     });
   });
 
   describe("supportsChattr", () => {
-    it("returns false on non-Linux platforms", async () => {
+    it.each([
+      "darwin",
+      "win32",
+    ] as const)("returns false on $platform", async (platform) => {
       const originalPlatform = process.platform;
-      Object.defineProperty(process, "platform", { value: "darwin" });
-
-      try {
-        expect(await supportsChattr()).toBe(false);
-      } finally {
-        Object.defineProperty(process, "platform", { value: originalPlatform });
-      }
-    });
-
-    it("returns false on Windows", async () => {
-      const originalPlatform = process.platform;
-      Object.defineProperty(process, "platform", { value: "win32" });
+      Object.defineProperty(process, "platform", { value: platform });
 
       try {
         expect(await supportsChattr()).toBe(false);

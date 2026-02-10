@@ -3,47 +3,17 @@ import { formatOutputs, generateDiff } from "../src/output.ts";
 
 describe("output utilities", () => {
   describe("formatOutputs", () => {
-    it("joins lines with unix line endings", () => {
-      const outputs = ["line1", "line2", "line3"];
-      const result = formatOutputs(outputs, false);
-      expect(result).toBe("line1\nline2\nline3\n");
-    });
-
-    it("joins lines with dos line endings", () => {
-      const outputs = ["line1", "line2", "line3"];
-      const result = formatOutputs(outputs, true);
-      expect(result).toBe("line1\r\nline2\r\nline3\r\n");
-    });
-
-    it("adds trailing newline if missing", () => {
-      const outputs = ["line1", "line2"];
-      const result = formatOutputs(outputs, false);
-      expect(result.endsWith("\n")).toBe(true);
-    });
-
-    it("does not double trailing newline", () => {
-      const outputs = ["line1", "line2", ""];
-      const result = formatOutputs(outputs, false);
-      expect(result).toBe("line1\nline2\n");
-      expect(result.endsWith("\n\n")).toBe(false);
-    });
-
-    it("handles empty array", () => {
-      const outputs: string[] = [];
-      const result = formatOutputs(outputs, false);
-      expect(result).toBe("");
-    });
-
-    it("handles single line", () => {
-      const outputs = ["only line"];
-      const result = formatOutputs(outputs, false);
-      expect(result).toBe("only line\n");
-    });
-
-    it("preserves empty lines in middle", () => {
-      const outputs = ["line1", "", "line3"];
-      const result = formatOutputs(outputs, false);
-      expect(result).toBe("line1\n\nline3\n");
+    it.each([
+      { outputs: ["line1", "line2", "line3"], dos: false, expected: "line1\nline2\nline3\n" },
+      { outputs: ["line1", "line2", "line3"], dos: true, expected: "line1\r\nline2\r\nline3\r\n" },
+      { outputs: ["line1", "line2"], dos: false, expected: "line1\nline2\n" },
+      { outputs: ["line1", "line2", ""], dos: false, expected: "line1\nline2\n" },
+      { outputs: [], dos: false, expected: "" },
+      { outputs: ["only line"], dos: false, expected: "only line\n" },
+      { outputs: ["line1", "", "line3"], dos: false, expected: "line1\n\nline3\n" },
+    ])("handles outputs: $outputs", ({ outputs, dos, expected }) => {
+      const result = formatOutputs(outputs, dos);
+      expect(result).toBe(expected);
     });
   });
 
@@ -57,26 +27,18 @@ describe("output utilities", () => {
       expect(diff).not.toContain("+line");
     });
 
-    it("shows added lines", () => {
-      const original = "line1\nline2\n";
-      const modified = "line1\nNEW\nline2\n";
+    it.each([
+      { original: "line1\nline2\n", modified: "line1\nNEW\nline2\n", expected: "+NEW" },
+      { original: "line1\nOLD\nline2\n", modified: "line1\nline2\n", expected: "-OLD" },
+      { original: "line1\nOLD\nline2\n", modified: "line1\nNEW\nline2\n", expectedContains: ["-OLD", "+NEW"] },
+    ])("handles diff: $modified", ({ original, modified, expected, expectedContains }) => {
       const diff = generateDiff(original, modified, "test.txt");
-      expect(diff).toContain("+NEW");
-    });
-
-    it("shows removed lines", () => {
-      const original = "line1\nOLD\nline2\n";
-      const modified = "line1\nline2\n";
-      const diff = generateDiff(original, modified, "test.txt");
-      expect(diff).toContain("-OLD");
-    });
-
-    it("shows changed lines", () => {
-      const original = "line1\nOLD\nline2\n";
-      const modified = "line1\nNEW\nline2\n";
-      const diff = generateDiff(original, modified, "test.txt");
-      expect(diff).toContain("-OLD");
-      expect(diff).toContain("+NEW");
+      if (expected) {
+        expect(diff).toContain(expected);
+      }
+      if (expectedContains) {
+        expectedContains.forEach(str => expect(diff).toContain(str));
+      }
     });
   });
 });
