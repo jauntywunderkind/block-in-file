@@ -1,4 +1,5 @@
 import type { ParseResult } from "./types.ts";
+import { stripTagsForMatching } from "./tags.ts";
 
 export interface ParseOptions {
   opener: string;
@@ -10,12 +11,12 @@ export interface ParseOptions {
   additive?: boolean;
   additiveBefore?: RegExp | "EOB" | "EOF" | "BOF";
   additiveAfter?: RegExp | "EOB" | "EOF" | "BOF";
-  openerPattern?: RegExp;
-  closerPattern?: RegExp;
+  actualOpener?: string;
+  actualCloser?: string;
 }
 
 export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): ParseResult {
-  const { opener, closer, inputBlock, before, after, appendNewline, additive, additiveBefore, additiveAfter, openerPattern, closerPattern } = opts;
+  const { opener, closer, inputBlock, before, after, appendNewline, additive, additiveBefore, additiveAfter, actualOpener, actualCloser } = opts;
   const match = before || after;
   const outputs: string[] = [];
   const lines = fileContent.split("\n");
@@ -29,23 +30,19 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
   let blockEndIndex = -1;
 
   const inputLines = inputBlock.split("\n");
+  const outputOpener = actualOpener || opener;
+  const outputCloser = actualCloser || closer;
 
   const isOpener = (line: string) => {
-    if (openerPattern) {
-      return openerPattern.test(line);
-    }
-    return line === opener;
+    return stripTagsForMatching(line.trim()) === opener;
   };
 
   const isCloser = (line: string) => {
-    if (closerPattern) {
-      return closerPattern.test(line);
-    }
-    return line === closer;
+    return stripTagsForMatching(line.trim()) === closer;
   };
 
   if (before === true) {
-    outputs.push(opener, ...inputLines, closer);
+    outputs.push(outputOpener, ...inputLines, outputCloser);
     if (appendNewline) {
       outputs.push("");
     }
@@ -106,12 +103,12 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
             newContentLines = [...blockContentLines, ...missingLines];
           }
           
-          outputs.push(opener, ...newContentLines, closer);
+          outputs.push(outputOpener, ...newContentLines, outputCloser);
         } else {
-          outputs.push(opener, ...blockContentLines, closer);
+          outputs.push(outputOpener, ...blockContentLines, outputCloser);
         }
       } else {
-        outputs.push(opener, ...inputLines, closer);
+        outputs.push(outputOpener, ...inputLines, outputCloser);
       }
       
       if (appendNewline) {
@@ -128,7 +125,7 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
   }
 
   if (opened !== undefined) {
-    outputs.push(opener, ...inputLines, closer);
+    outputs.push(outputOpener, ...inputLines, outputCloser);
     if (appendNewline) {
       outputs.push("");
     }
@@ -139,7 +136,7 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
     if (matched === -1) {
       matched = i;
     }
-    outputs.splice(matched + (after ? 1 : 0), 0, opener, ...inputLines, closer);
+    outputs.splice(matched + (after ? 1 : 0), 0, outputOpener, ...inputLines, outputCloser);
     if (appendNewline) {
       outputs.splice(matched + (after ? 1 : 0) + inputLines.length + 2, 0, "");
     }

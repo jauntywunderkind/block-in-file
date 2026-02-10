@@ -1,4 +1,5 @@
 import type { LoggerExtension } from "./plugins/logger.ts";
+import { stripTagsForMatching } from "./tags.ts";
 
 export interface Conflict {
   type: "duplicate" | "nested" | "mismatched";
@@ -23,7 +24,7 @@ export function detectConflicts(
   const closerPositions: number[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const line = stripTagsForMatching(lines[i].trim());
     if (line === opener) {
       openerPositions.push(i);
     } else if (line === closer) {
@@ -53,7 +54,7 @@ export function detectConflicts(
 
   let depth = 0;
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const line = stripTagsForMatching(lines[i].trim());
     if (line === opener) {
       depth++;
       if (depth > 1) {
@@ -107,7 +108,7 @@ export function detectConflictsWithPattern(
   const closerPositions: number[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const line = stripTagsForMatching(lines[i].trim());
     if (openerPattern.test(line)) {
       openerPositions.push(i);
     } else if (closerPattern.test(line)) {
@@ -137,7 +138,7 @@ export function detectConflictsWithPattern(
 
   let depth = 0;
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const line = stripTagsForMatching(lines[i].trim());
     if (openerPattern.test(line)) {
       depth++;
       if (depth > 1) {

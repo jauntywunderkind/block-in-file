@@ -1,4 +1,5 @@
 import type { LoggerExtension } from "./plugins/logger.ts";
+import { stripTagsForMatching } from "./tags.ts";
 
 export interface RemovedBlock {
   blockName: string;
@@ -48,17 +49,15 @@ export function removeBlocks(opts: BlockRemoverOptions): { content: string; stat
   let currentBlockName: string | null = null;
 
   const openerRegex = new RegExp(
-    `^${escapeRegex(comment)}\\s+(\\S+)\\s+${escapeRegex(markerStart)}(\\s+[0-9TZ:.-]+)?$`,
+    `^${escapeRegex(comment)}\\s+(\\S+)\\s+${escapeRegex(markerStart)}(\\s+.*)?$`,
   );
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
     if (inBlock) {
-      const closerRegex = new RegExp(
-        `^${escapeRegex(comment)}\\s+${escapeRegex(currentBlockName || "")}\\s+${escapeRegex(markerEnd)}(\\s+[0-9TZ:.-]+)?$`,
-      );
-      const isCloser = closerRegex.test(line);
+      const isCloser = line.trim() === `${comment} ${currentBlockName || ""} ${markerEnd}` ||
+        stripTagsForMatching(line.trim()) === `${comment} ${currentBlockName || ""} ${markerEnd}`;
 
       if (isCloser) {
         const isTargetBlock = currentBlockName && blockNames.includes(currentBlockName);
@@ -101,7 +100,8 @@ export function removeBlocks(opts: BlockRemoverOptions): { content: string; stat
       }
     } else {
       const openerMatch = line.match(openerRegex);
-      if (openerMatch) {
+      if (openerMatch && (line.trim() === `${comment} ${openerMatch[1] || ""} ${markerStart}` ||
+        stripTagsForMatching(line.trim()) === `${comment} ${openerMatch[1] || ""} ${markerStart}`)) {
         inBlock = true;
         blockStartLine = i;
         currentBlockName = openerMatch[1] || "";

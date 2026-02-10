@@ -11,7 +11,9 @@ import { detectConflicts, detectConflictsWithPattern } from "./conflict-detectio
 import { parseAttributes, applyAttributesSafe } from "./attributes.ts";
 import { removeBlocks, type RemovalStats } from "./block-remover.ts";
 import { substitute } from "./envsubst.ts";
-import { generateTimestamp, parseTimestampFormat, type TimestampFormat } from "./timestamp.ts";
+import { generateTimestampTag, parseTimestampFormat, type TimestampFormat } from "./timestamp.ts";
+import { stripTagsForMatching, addTags, type Tag } from "./tags.ts";
+import { escapeRegex } from "./block-remover.ts";
 
 export interface ProcessContext {
   file: string;
@@ -119,24 +121,22 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
   }
 
   const timestampFormat = parseTimestampFormat(timestamp);
-  let actualOpener = opener;
-  let actualCloser = closer;
-  let openerPattern: RegExp | undefined;
-  let closerPattern: RegExp | undefined;
+  const tags: Tag[] = [];
 
   if (timestampFormat) {
-    const ts = generateTimestamp(timestampFormat);
-    actualOpener = `${opener} ${ts}`;
-    actualCloser = `${closer} ${ts}`;
-
-    const openerBase = opener.replace(/\s+/g, "\\s+");
-    const closerBase = closer.replace(/\s+/g, "\\s+");
-    openerPattern = new RegExp(`^\\s*${openerBase}(\\s+[0-9TZ:.-]+)?\\s*$`);
-    closerPattern = new RegExp(`^\\s*${closerBase}(\\s+[0-9TZ:.-]+)?\\s*$`);
+    tags.push({ name: "timestamp", value: generateTimestampTag(timestampFormat).replace(/^\[timestamp:/, "").replace(/\]$/, "") });
   }
 
-  const conflictResult = timestampFormat
-    ? detectConflictsWithPattern(fileContent, opener, closer, openerPattern!, closerPattern!, logger)
+  let actualOpener = tags.length > 0 ? addTags(opener, tags) : opener;
+  let actualCloser = tags.length > 0 ? addTags(closer, tags) : closer;
+
+  const openerBase = opener.replace(/\s+/g, "\\s+");
+  const closerBase = closer.replace(/\s+/g, "\\s+");
+  const openerPattern = new RegExp(`^\\s*${openerBase}(\\s+\\[[a-zA-Z0-9_-]+:[^\\[\\]]+\\])*\\s*$`);
+  const closerPattern = new RegExp(`^\\s*${closerBase}(\\s+\\[[a-zA-Z0-9_-]+:[^\\[\\]]+\\])*\\s*$`);
+
+  const conflictResult = tags.length > 0
+    ? detectConflictsWithPattern(fileContent, opener, closer, openerPattern, closerPattern, logger)
     : detectConflicts(fileContent, opener, closer, logger);
   if (conflictResult.hasConflicts) {
     throw new Error(
@@ -244,8 +244,8 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
   }
 
   const result = parseAndInsertBlock(fileContent, {
-    opener: actualOpener,
-    closer: actualCloser,
+    opener: opener,
+    closer: closer,
     inputBlock: processedInputBlock,
     before: before === true ? undefined : before,
     after: after === true ? undefined : after,
@@ -253,8 +253,8 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     additive,
     additiveBefore: parsedAdditiveBefore,
     additiveAfter: parsedAdditiveAfter,
-    openerPattern,
-    closerPattern,
+    actualOpener: tags.length > 0 ? actualOpener : undefined,
+    actualCloser: tags.length > 0 ? actualCloser : undefined,
   });
 
   const outputText = formatOutputs(result.outputs, dos);

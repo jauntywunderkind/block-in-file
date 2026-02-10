@@ -1,6 +1,8 @@
+import { Tag, generateTag as generateTagFromUtil } from "./tags.ts";
+
 export type TimestampFormat = "epoch-nano" | "epoch-sec" | "iso8601";
 
-export function generateTimestamp(format: TimestampFormat): string {
+function generateTimestamp(format: TimestampFormat): string {
   const now = new Date();
 
   switch (format) {
@@ -17,6 +19,11 @@ export function generateTimestamp(format: TimestampFormat): string {
       return `${now.getTime()}000000`;
     }
   }
+}
+
+export function generateTimestampTag(format: TimestampFormat): string {
+  const timestamp = generateTimestamp(format);
+  return generateTagFromUtil("timestamp", timestamp);
 }
 
 export function parseTimestampFormat(value: string | undefined): TimestampFormat | undefined {
