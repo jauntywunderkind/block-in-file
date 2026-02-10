@@ -16,7 +16,19 @@ export interface ParseOptions {
 }
 
 export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): ParseResult {
-  const { opener, closer, inputBlock, before, after, appendNewline, additive, additiveBefore, additiveAfter, actualOpener, actualCloser } = opts;
+  const {
+    opener,
+    closer,
+    inputBlock,
+    before,
+    after,
+    appendNewline,
+    additive,
+    additiveBefore,
+    additiveAfter,
+    actualOpener,
+    actualCloser,
+  } = opts;
   const match = before || after;
   const outputs: string[] = [];
   const lines = fileContent.split("\n");
@@ -73,17 +85,25 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
 
       if (additive) {
         const missingLines = inputLines.filter((line) => !blockContentLines.includes(line));
-        
+
         if (missingLines.length > 0 || blockContentLines.length === 0) {
           let newContentLines: string[];
-          
+
           if (blockContentLines.length === 0) {
             newContentLines = inputLines;
-          } else if (additiveAfter === "EOB" || additiveAfter === "EOF" || (!additiveBefore && !additiveAfter)) {
+          } else if (
+            additiveAfter === "EOB" ||
+            additiveAfter === "EOF" ||
+            (!additiveBefore && !additiveAfter)
+          ) {
             newContentLines = [...blockContentLines, ...missingLines];
           } else if (additiveBefore === "BOF") {
             newContentLines = [...missingLines, ...blockContentLines];
-          } else if (additiveAfter && typeof additiveAfter === "object" && "test" in additiveAfter) {
+          } else if (
+            additiveAfter &&
+            typeof additiveAfter === "object" &&
+            "test" in additiveAfter
+          ) {
             let insertIndex = blockContentLines.findIndex((l) => additiveAfter.test(l));
             if (insertIndex === -1) insertIndex = blockContentLines.length;
             newContentLines = [
@@ -91,7 +111,11 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
               ...missingLines,
               ...blockContentLines.slice(insertIndex + 1),
             ];
-          } else if (additiveBefore && typeof additiveBefore === "object" && "test" in additiveBefore) {
+          } else if (
+            additiveBefore &&
+            typeof additiveBefore === "object" &&
+            "test" in additiveBefore
+          ) {
             let insertIndex = blockContentLines.findIndex((l) => additiveBefore.test(l));
             if (insertIndex === -1) insertIndex = 0;
             newContentLines = [
@@ -102,7 +126,7 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
           } else {
             newContentLines = [...blockContentLines, ...missingLines];
           }
-          
+
           outputs.push(outputOpener, ...newContentLines, outputCloser);
         } else {
           outputs.push(outputOpener, ...blockContentLines, outputCloser);
@@ -110,7 +134,7 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
       } else {
         outputs.push(outputOpener, ...inputLines, outputCloser);
       }
-      
+
       if (appendNewline) {
         outputs.push("");
       }

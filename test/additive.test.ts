@@ -45,7 +45,8 @@ describe("additive mode", () => {
   });
 
   it("does nothing when all lines already exist", () => {
-    const fileContent = "header\n# blockinfile start\nline1\nline2\nline3\n# blockinfile end\nfooter";
+    const fileContent =
+      "header\n# blockinfile start\nline1\nline2\nline3\n# blockinfile end\nfooter";
     const result = parseAndInsertBlock(fileContent, {
       ...defaultOpts,
       additive: true,
@@ -120,7 +121,8 @@ describe("additive mode", () => {
   });
 
   it("adds missing lines after matching line with --additive-after regex", () => {
-    const fileContent = "header\n# blockinfile start\nline1\nmarker\nline3\n# blockinfile end\nfooter";
+    const fileContent =
+      "header\n# blockinfile start\nline1\nmarker\nline3\n# blockinfile end\nfooter";
     const result = parseAndInsertBlock(fileContent, {
       ...defaultOpts,
       additive: true,
@@ -140,7 +142,8 @@ describe("additive mode", () => {
   });
 
   it("adds missing lines before matching line with --additive-before regex", () => {
-    const fileContent = "header\n# blockinfile start\nline1\nmarker\nline3\n# blockinfile end\nfooter";
+    const fileContent =
+      "header\n# blockinfile start\nline1\nmarker\nline3\n# blockinfile end\nfooter";
     const result = parseAndInsertBlock(fileContent, {
       ...defaultOpts,
       additive: true,
@@ -192,7 +195,8 @@ describe("additive mode", () => {
   });
 
   it("replaces block when additive is false (default behavior)", () => {
-    const fileContent = "header\n# blockinfile start\nold line1\nold line2\n# blockinfile end\nfooter";
+    const fileContent =
+      "header\n# blockinfile start\nold line1\nold line2\n# blockinfile end\nfooter";
     const result = parseAndInsertBlock(fileContent, {
       ...defaultOpts,
       additive: false,

@@ -56,7 +56,8 @@ export function removeBlocks(opts: BlockRemoverOptions): { content: string; stat
     const line = lines[i];
 
     if (inBlock) {
-      const isCloser = line.trim() === `${comment} ${currentBlockName || ""} ${markerEnd}` ||
+      const isCloser =
+        line.trim() === `${comment} ${currentBlockName || ""} ${markerEnd}` ||
         stripTagsForMatching(line.trim()) === `${comment} ${currentBlockName || ""} ${markerEnd}`;
 
       if (isCloser) {
@@ -100,8 +101,11 @@ export function removeBlocks(opts: BlockRemoverOptions): { content: string; stat
       }
     } else {
       const openerMatch = line.match(openerRegex);
-      if (openerMatch && (line.trim() === `${comment} ${openerMatch[1] || ""} ${markerStart}` ||
-        stripTagsForMatching(line.trim()) === `${comment} ${openerMatch[1] || ""} ${markerStart}`)) {
+      if (
+        openerMatch &&
+        (line.trim() === `${comment} ${openerMatch[1] || ""} ${markerStart}` ||
+          stripTagsForMatching(line.trim()) === `${comment} ${openerMatch[1] || ""} ${markerStart}`)
+      ) {
         inBlock = true;
         blockStartLine = i;
         currentBlockName = openerMatch[1] || "";

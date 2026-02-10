@@ -189,11 +189,13 @@ export default function config() {
       });
       ctx.addGlobalOption("timestamp", {
         type: "string",
-        description: "Add timestamp to block markers (default: epoch-nano, options: epoch-nano, epoch-sec, iso8601)",
+        description:
+          "Add timestamp to block markers (default: epoch-nano, options: epoch-nano, epoch-sec, iso8601)",
       });
       ctx.addGlobalOption("tag-mode", {
         type: "string",
-        description: "Tag handling strategy: merge (default) or replace. Merge preserves existing tags not being updated",
+        description:
+          "Tag handling strategy: merge (default) or replace. Merge preserves existing tags not being updated",
       });
     },
     extension: (ctx): ConfigExtension => {

@@ -117,8 +117,8 @@ Create test files:
 const options: BlockInFileOptions = {
   // ... other options
   envsubst: true, // recursive (expand until stable)
-  envsubst: 'recursive', // explicit recursive mode
-  envsubst: 'non-recursive', // single pass (like envsubst)
+  envsubst: "recursive", // explicit recursive mode
+  envsubst: "non-recursive", // single pass (like envsubst)
   envsubst: false, // disabled
 };
 ```

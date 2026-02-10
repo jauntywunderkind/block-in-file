@@ -105,7 +105,7 @@ content
 # blockinfile end [timestamp:1770717943385000000]
 ```
 
- The tags are automatically stripped when matching blocks, so updates work correctly even when timestamps or other tags change between runs. Multiple tags can be added, and custom tag types can be implemented in the future.
+The tags are automatically stripped when matching blocks, so updates work correctly even when timestamps or other tags change between runs. Multiple tags can be added, and custom tag types can be implemented in the future.
 
 ## Tag Mode
 
@@ -120,5 +120,3 @@ The `--tag-mode` option controls how existing tags are handled when updating blo
     the result is `[timestamp:...]` (the `[foo]` tag is removed).
 
 This allows you to maintain custom metadata on blocks while updating them programmatically.
-
-
