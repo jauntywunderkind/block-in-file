@@ -28,7 +28,7 @@
   "dependencies": {
     "@gunshi/plugin": "^0.27.5",
     "args-tokenizer": "^0.3.0",
-    "gunshi": "^0.27.5",
+    "gunshi": "^0.28.0",
     "tinyexec": "^1.0.2"
   },
   "devDependencies": {
