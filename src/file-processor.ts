@@ -163,8 +163,8 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
 
     const openerBase = opener.replace(/\s+/g, "\\s+");
     const closerBase = closer.replace(/\s+/g, "\\s+");
-    openerPattern = new RegExp(`^\\s*${openerBase}(\\s+\\[[a-zA-Z0-9_-]+:[^\\[\\]]+\\])*\\s*$`);
-    closerPattern = new RegExp(`^\\s*${closerBase}(\\s+\\[[a-zA-Z0-9_-]+:[^\\[\\]]+\\])*\\s*$`);
+    openerPattern = new RegExp(`^\\s*${openerBase}(\\s+\\[[a-zA-Z0-9_-]+(?::[^\\[\\]]+)?\\])*\\s*$`);
+    closerPattern = new RegExp(`^\\s*${closerBase}(\\s+\\[[a-zA-Z0-9_-]+(?::[^\\[\\]]+)?\\])*\\s*$`);
   }
 
   const conflictResult = finalTags.length > 0
