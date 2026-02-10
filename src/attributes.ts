@@ -1,6 +1,6 @@
 import { x } from "tinyexec";
-import type { LoggerExtension } from "./plugins/logger.js";
-import type { IOExtension } from "./plugins/io.js";
+import type { LoggerExtension } from "./plugins/logger.ts";
+import type { IOExtension } from "./plugins/io.ts";
 
 export interface AttributeChange {
   mode: "+" | "-" | "=";

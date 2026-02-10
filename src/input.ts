@@ -1,4 +1,4 @@
-import type { CreateArg, InputOptions } from "./types.js";
+import type { CreateArg, InputOptions } from "./types.ts";
 import * as fs from "node:fs/promises";
 
 export function get<T>(source: Partial<T>, defaults: Partial<T>, ...keys: (keyof T)[]) {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseAttributes, supportsChattr } from "../src/attributes.js";
+import { parseAttributes, supportsChattr } from "../src/attributes.ts";
 
 describe("attributes", () => {
   describe("parseAttributes", () => {

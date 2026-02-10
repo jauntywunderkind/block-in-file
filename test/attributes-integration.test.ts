@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 import { execSync } from "node:child_process";
-import { supportsChattr } from "../src/attributes.js";
+import { supportsChattr } from "../src/attributes.ts";
 
 describe("Attributes integration", () => {
   let tempDir: string;

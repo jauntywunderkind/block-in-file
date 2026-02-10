@@ -1,14 +1,14 @@
 #!/usr/bin/env -S npx tsx
 import { cli, define } from "gunshi";
-import { pluginId as configId, type ConfigExtension } from "./src/plugins/config.js";
-import { pluginId as loggerId, type LoggerExtension } from "./src/plugins/logger.js";
-import { pluginId as ioId, type IOExtension } from "./src/plugins/io.js";
-import { pluginId as diffId, type DiffExtension } from "./src/plugins/diff.js";
-import logger from "./src/plugins/logger.js";
-import config from "./src/plugins/config.js";
-import io from "./src/plugins/io.js";
-import diff from "./src/plugins/diff.js";
-import { processFile, type ProcessContext, type ProcessResult } from "./src/file-processor.js";
+import { pluginId as configId, type ConfigExtension } from "./src/plugins/config.ts";
+import { pluginId as loggerId, type LoggerExtension } from "./src/plugins/logger.ts";
+import { pluginId as ioId, type IOExtension } from "./src/plugins/io.ts";
+import { pluginId as diffId, type DiffExtension } from "./src/plugins/diff.ts";
+import logger from "./src/plugins/logger.ts";
+import config from "./src/plugins/config.ts";
+import io from "./src/plugins/io.ts";
+import diff from "./src/plugins/diff.ts";
+import { processFile, type ProcessContext, type ProcessResult } from "./src/file-processor.ts";
 
 const command = define<{
   extensions: Record<typeof configId, ConfigExtension> &

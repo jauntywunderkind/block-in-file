@@ -1,4 +1,4 @@
-import type { ModeArg } from "./plugins/config.js";
+import type { ModeArg } from "./plugins/config.ts";
 
 export type BlockState = "absent" | "created" | "exists" | "updated" | "unchanged";
 

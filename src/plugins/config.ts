@@ -1,5 +1,5 @@
 import { plugin } from "gunshi/plugin";
-import { parseBackupOption, type BackupOptions } from "../backup.js";
+import { parseBackupOption, type BackupOptions } from "../backup.ts";
 
 export const pluginId = "blockinfile:config" as const;
 export type PluginId = typeof pluginId;

@@ -1,4 +1,4 @@
-import type { ParseResult } from "./types.js";
+import type { ParseResult } from "./types.ts";
 
 export interface ParseOptions {
   opener: string;

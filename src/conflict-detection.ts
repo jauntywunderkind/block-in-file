@@ -1,4 +1,4 @@
-import type { LoggerExtension } from "./plugins/logger.js";
+import type { LoggerExtension } from "./plugins/logger.ts";
 
 export interface Conflict {
   type: "duplicate" | "nested" | "mismatched";

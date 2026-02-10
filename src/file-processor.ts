@@ -1,16 +1,16 @@
-import type { ModeArg, EnvsubstMode } from "./plugins/config.js";
-import type { LoggerExtension } from "./plugins/logger.js";
-import type { IOExtension } from "./plugins/io.js";
-import type { DiffExtension } from "./plugins/diff.js";
-import type { BackupOptions } from "./backup.js";
-import { parseAndInsertBlock } from "./block-parser.js";
-import { formatOutputs } from "./output.js";
-import { detectBlockState, shouldSkipForMode } from "./mode-handler.js";
+import type { ModeArg, EnvsubstMode } from "./plugins/config.ts";
+import type { LoggerExtension } from "./plugins/logger.ts";
+import type { IOExtension } from "./plugins/io.ts";
+import type { DiffExtension } from "./plugins/diff.ts";
+import type { BackupOptions } from "./backup.ts";
+import { parseAndInsertBlock } from "./block-parser.ts";
+import { formatOutputs } from "./output.ts";
+import { detectBlockState, shouldSkipForMode } from "./mode-handler.ts";
 import { runValidation } from "./validation.ts";
 import { detectConflicts } from "./conflict-detection.ts";
-import { parseAttributes, applyAttributesSafe } from "./attributes.js";
-import { removeBlocks, type RemovalStats } from "./block-remover.js";
-import { substitute } from "./envsubst.js";
+import { parseAttributes, applyAttributesSafe } from "./attributes.ts";
+import { removeBlocks, type RemovalStats } from "./block-remover.ts";
+import { substitute } from "./envsubst.ts";
 
 export interface ProcessContext {
   file: string;

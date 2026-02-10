@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { removeBlocks } from "../src/block-remover.js";
+import { removeBlocks } from "../src/block-remover.ts";
 
 describe("block-remover", () => {
   describe("removeBlocks", () => {

@@ -12,7 +12,7 @@ import {
   performBackup,
   parseBackupOption,
   type BackupOptions,
-} from "../src/backup.js";
+} from "../src/backup.ts";
 
 describe("Backup", () => {
   let tempDir: string;

@@ -2,7 +2,7 @@ import { plugin } from "gunshi/plugin";
 import * as fs from "node:fs/promises";
 import * as readline from "node:readline";
 import { stdin as input, stdout as output } from "node:process";
-import { performBackup, type BackupOptions } from "../backup.js";
+import { performBackup, type BackupOptions } from "../backup.ts";
 
 export const pluginId = "blockinfile:io" as const;
 export type PluginId = typeof pluginId;
