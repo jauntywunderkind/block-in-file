@@ -1,6 +1,6 @@
 {
   "name": "block-in-file",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Insert & update blocks of text in files",
   "keywords": [
     "block",
