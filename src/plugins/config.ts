@@ -10,6 +10,12 @@ export type StateOnFailMode = "iterate" | "fail" | "overwrite";
 export type EnvsubstMode = "recursive" | "non-recursive" | false;
 export type AdditiveLocationArg = "before" | "after";
 export type TagModeArg = "merge" | "replace";
+export type AnchorType = "bof" | "eof";
+
+export interface AnchorOptions {
+  type: AnchorType;
+  priority: number;
+}
 
 export interface ConfigExtension {
   name: string;
@@ -44,6 +50,7 @@ export interface ConfigExtension {
   additiveAfter?: string;
   timestamp?: string;
   tagMode?: TagModeArg;
+  anchor?: AnchorOptions;
 }
 
 export default function config() {
@@ -197,6 +204,11 @@ export default function config() {
         description:
           "Tag handling strategy: merge (default) or replace. Merge preserves existing tags not being updated",
       });
+      ctx.addGlobalOption("anchor", {
+        type: "string",
+        description:
+          "Anchor block position: bof[:priority] or eof[:priority]. Higher priority = stronger positioning at file edges. Default priority: 100",
+      });
     },
     extension: (ctx): ConfigExtension => {
       const createValue = ctx.values.create as string | undefined;
@@ -243,6 +255,17 @@ export default function config() {
         envsubst = false;
       }
 
+      const anchorValue = ctx.values.anchor as string | undefined;
+      let anchor: AnchorOptions | undefined = undefined;
+      if (anchorValue) {
+        const parts = anchorValue.toLowerCase().split(":");
+        const type = parts[0] as AnchorType;
+        if (type === "bof" || type === "eof") {
+          const priority = parts[1] ? parseInt(parts[1], 10) : 100;
+          anchor = { type, priority: isNaN(priority) ? 100 : priority };
+        }
+      }
+
       return {
         name: ctx.values.name as string,
         comment: ctx.values.comment as string,
@@ -276,6 +299,7 @@ export default function config() {
         additiveAfter: ctx.values["additive-after"] as string | undefined,
         timestamp: ctx.values.timestamp as string | undefined,
         tagMode: ctx.values["tag-mode"] as TagModeArg | undefined,
+        anchor,
       };
     },
   });

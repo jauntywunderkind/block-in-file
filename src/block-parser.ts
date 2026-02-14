@@ -1,5 +1,10 @@
 import type { ParseResult } from "./types.ts";
 import { stripTagsForMatching } from "./tags/tags.ts";
+import type { AnchorInfo } from "./anchor.ts";
+import {
+  findBlocksAndAnchors,
+  calculateInsertPosition,
+} from "./anchor.ts";
 
 export interface ParseOptions {
   opener: string;
@@ -13,6 +18,7 @@ export interface ParseOptions {
   additiveAfter?: RegExp | "EOB" | "EOF" | "BOF";
   actualOpener?: string;
   actualCloser?: string;
+  anchor?: AnchorInfo;
 }
 
 export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): ParseResult {
@@ -28,6 +34,7 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
     additiveAfter,
     actualOpener,
     actualCloser,
+    anchor,
   } = opts;
   const match = before || after;
   const outputs: string[] = [];
@@ -157,12 +164,22 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
   }
 
   if (!done) {
-    if (matched === -1) {
-      matched = i;
-    }
-    outputs.splice(matched + (after ? 1 : 0), 0, outputOpener, ...inputLines, outputCloser);
-    if (appendNewline) {
-      outputs.splice(matched + (after ? 1 : 0) + inputLines.length + 2, 0, "");
+    if (anchor && matched === -1 && !before && !after) {
+      const existingBlocks = findBlocksAndAnchors(lines, opener, closer);
+      const insertPos = calculateInsertPosition(lines, anchor, existingBlocks);
+      outputs.splice(insertPos, 0, outputOpener, ...inputLines, outputCloser);
+      if (appendNewline) {
+        outputs.splice(insertPos + inputLines.length + 2, 0, "");
+      }
+      matched = insertPos;
+    } else {
+      if (matched === -1) {
+        matched = i;
+      }
+      outputs.splice(matched + (after ? 1 : 0), 0, outputOpener, ...inputLines, outputCloser);
+      if (appendNewline) {
+        outputs.splice(matched + (after ? 1 : 0) + inputLines.length + 2, 0, "");
+      }
     }
   }
 

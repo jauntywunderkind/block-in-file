@@ -101,6 +101,7 @@ const command = define<{
         additiveAfter: configExt.additiveAfter,
         timestamp: configExt.timestamp,
         tagMode: configExt.tagMode,
+        anchor: configExt.anchor,
       };
 
       const result = await processFile(processContext);

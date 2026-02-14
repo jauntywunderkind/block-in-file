@@ -1,4 +1,4 @@
-import type { ModeArg, EnvsubstMode } from "./plugins/config.ts";
+import type { ModeArg, EnvsubstMode, AnchorOptions } from "./plugins/config.ts";
 import type { LoggerExtension } from "./plugins/logger.ts";
 import type { IOExtension } from "./plugins/io.ts";
 import type { DiffExtension } from "./plugins/diff.ts";
@@ -49,6 +49,7 @@ export interface ProcessContext {
   additiveAfter?: string;
   timestamp?: string;
   tagMode?: string;
+  anchor?: AnchorOptions;
 }
 
 export interface ProcessResult {
@@ -92,6 +93,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     additiveAfter,
     timestamp,
     tagMode,
+    anchor,
   } = ctx;
 
   const processedInputBlock = envsubst ? substitute(inputBlock, { mode: envsubst }) : inputBlock;
@@ -140,6 +142,13 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
       value: generateTimestampTag(timestampFormat)
         .replace(/^\[timestamp:/, "")
         .replace(/\]$/, ""),
+    });
+  }
+
+  if (anchor) {
+    newTags.push({
+      name: `anchor-${anchor.type}`,
+      value: String(anchor.priority),
     });
   }
 
@@ -298,6 +307,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     additiveBefore: parsedAdditiveBefore,
     additiveAfter: parsedAdditiveAfter,
     actualOpener: finalTags.length > 0 ? actualOpener : undefined,
+    anchor,
   });
 
   const outputText = formatOutputs(result.outputs, dos);

@@ -22,37 +22,52 @@ deno task install
 
 # Examples
 
+Assume `hello-world.txt` starts as:
+
+```text
+hello, world
 ```
-echo hello world > sample.txt
-echo add this block to sample | block-in-file sample.txt
-echo replace the block in sample | block-in-file sample.txt
-cat sample.txt
-> hello world
-> # block-in-file start
-> replace the block in sample
-> # block-in-file end
 
-echo output to stdout instead of sample | block-in-file sample.txt -o -
-> hello world
-> # block-in-file start
-> output to stdout instead of sample
-> # block-in-file end
-
-echo create a new block with a new name | block-in-file sample.txt -n block2 -o -
-> hello world
-> # block-in-file start
-> output to stdout instead of sample
-> # block-in-file end
-> # block2 start
-> create a new block with a new name
-> # block2 end
-
-echo use before or after regexp to place blocks | block-in-file sample.txt --before '^he.*o' -o -
-> # block-in-file start
-> use before or after to place blocks in text
-> # block-in-file end
-> hello world
-```
+| Use Case | Invocation | Stdin | Before (`hello-world.txt`) | Output (`hello-world.txt` after command) |
+| --- | --- | --- | --- | --- |
+| Default managed block. Good for idempotent inserts. | `block-in-file hello-world.txt` | `managed line` | <pre><code>hello, world</code></pre> | <pre><code>hello, world
+# blockinfile start
+managed line
+# blockinfile end</code></pre> |
+| Force placement at file start with `BOF`. | `block-in-file hello-world.txt --name header --before BOF` | `top note` | <pre><code>hello, world</code></pre> | <pre><code># header start
+top note
+# header end
+hello, world</code></pre> |
+| Force placement at file end with `EOF`. | `block-in-file hello-world.txt --name footer --after EOF` | `bottom note` | <pre><code>hello, world</code></pre> | <pre><code>hello, world
+# footer start
+bottom note
+# footer end</code></pre> |
+| Regex anchor placement. Insert before a matched line (`^hello, world$`). | `block-in-file hello-world.txt --name preface --before '^hello, world$'` | `inserted before greeting` | <pre><code>title
+hello, world
+goodbye</code></pre> | <pre><code>title
+# preface start
+inserted before greeting
+# preface end
+hello, world
+goodbye</code></pre> |
+| Manage multiple independent blocks with different names. | `block-in-file hello-world.txt --name owners` then `block-in-file hello-world.txt --name status` | first run: `owner=team-a`; second run: `build=green` | <pre><code>hello, world</code></pre> | <pre><code>hello, world
+# owners start
+owner=team-a
+# owners end
+# status start
+build=green
+# status end</code></pre> |
+| Read block content from a file using `-i` instead of stdin. | `block-in-file hello-world.txt --name from-file -i deploy.txt` | none (`deploy.txt` contains `deploy=true`) | <pre><code>hello, world</code></pre> | <pre><code>hello, world
+# from-file start
+deploy=true
+# from-file end</code></pre> |
+| Merge marker tags while updating content (`--timestamp` + `--tag-mode merge`). | `block-in-file hello-world.txt --name deploy --timestamp epoch-sec --tag-mode merge` | `deploy=true` | <pre><code>hello, world
+# deploy start [env:dev]
+deploy=false
+# deploy end [env:dev]</code></pre> | <pre><code>hello, world
+# deploy start [env:dev] [timestamp:1771009491]
+deploy=true
+# deploy end [env:dev] [timestamp:1771009491]</code></pre> |
 
 ## Full Usage
 
