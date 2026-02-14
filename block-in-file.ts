@@ -25,11 +25,22 @@ const command = define<{
     const io = extensions[ioId];
     const diffExt = extensions[diffId];
 
-    const files = (positionals as string[]) || [];
+    let files = (positionals as string[]) || [];
+
+    if (configExt.debug) {
+      logger.debug(`Initial files: ${JSON.stringify(files)}`);
+      logger.debug(`Output target: ${configExt.output}`);
+    }
 
     if (files.length === 0 && !configExt.diff) {
       if (configExt.output === "---" || !configExt.output) {
         throw new Error("Need file argument or output target");
+      }
+      if (configExt.output !== "-" && configExt.output !== "--") {
+        if (configExt.debug) {
+          logger.debug(`No positional file provided, using output path as target: ${configExt.output}`);
+        }
+        files = [configExt.output];
       }
     }
 
