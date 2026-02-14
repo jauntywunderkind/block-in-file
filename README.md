@@ -68,6 +68,24 @@ deploy=false
 # deploy start [env:dev] [timestamp:1771009491]
 deploy=true
 # deploy end [env:dev] [timestamp:1771009491]</code></pre> |
+| Anchor block at file start with `--anchor bof`. Higher priority = closer to edge. | `block-in-file hello-world.txt --name header --anchor bof` | `header content` | <pre><code>hello, world</code></pre> | <pre><code># header start [anchor-bof:100]
+header content
+# header end
+hello, world</code></pre> |
+| Anchor block at file end with `--anchor eof`. | `block-in-file hello-world.txt --name footer --anchor eof` | `footer content` | <pre><code>hello, world</code></pre> | <pre><code>hello, world
+# footer start [anchor-eof:100]
+footer content
+# footer end</code></pre> |
+| Anchor with custom priority. Higher values are more strongly positioned. | `block-in-file hello-world.txt --name critical --anchor bof:200` | `critical header` | <pre><code># header start [anchor-bof:100]
+header content
+# header end
+hello, world</code></pre> | <pre><code># critical start [anchor-bof:200]
+critical header
+# critical end
+# header start [anchor-bof:100]
+header content
+# header end
+hello, world</code></pre> |
 
 ## Full Usage
 
@@ -106,6 +124,7 @@ deploy=true
 | `--additive-after` | none | `<additive-after>` | Position to add missing lines in additive mode (`regex`, `EOF`, or `EOB`) |
 | `--timestamp` | none | `<timestamp>` | Add timestamp to markers (default: `epoch-nano`; options: `epoch-nano`, `epoch-sec`, `iso8601`) |
 | `--tag-mode` | none | `<tag-mode>` | Tag handling: `merge` (default) or `replace` |
+| `--anchor` | none | `<anchor>` | Anchor position: `bof[:priority]` or `eof[:priority]`. Higher priority = stronger edge positioning. Default priority: 100 |
 
 <details>
 <summary>Expand original CLI help text</summary>
@@ -150,6 +169,7 @@ OPTIONS:
   --additive-after <additive-after>                      Position to add missing lines in additive mode (regex, EOF for end of file, or EOB for end of block)
   --timestamp <timestamp>                                Add timestamp to block markers (default: epoch-nano, options: epoch-nano, epoch-sec, iso8601)
   --tag-mode <tag-mode>                                  Tag handling strategy: merge (default) or replace. Merge preserves existing tags not being updated
+  --anchor <anchor>                                      Anchor block position: bof[:priority] or eof[:priority]. Higher priority = stronger positioning at file edges. Default priority: 100
 ```
 
 </details>
