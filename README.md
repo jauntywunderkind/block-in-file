@@ -118,7 +118,7 @@ hello, world</code></pre> |
 | `--attributes` | none | `<attributes>` | Set file attributes using `chattr` syntax (e.g. `+i`, `-i`, `+a`) |
 | `--remove-all` | none | `<remove-all>` | Remove all blocks with specified name(s), space-separated |
 | `--remove-orphans` | none | none | Remove orphaned blocks (blocks with empty content) |
-| `--envsubst` | none | `<envsubst>` | Enable environment variable substitution (`true` recursive, `non-recursive`, `false`) |
+| `--envsubst` | none | `[mode]` | Enable environment variable substitution. No value or `true`/`recursive` = recursive; `non-recursive` = single-pass; `false` = off (default: off) |
 | `--additive` | none | none | Ensure all input lines exist in block; add missing lines instead of replacing |
 | `--additive-before` | none | `<additive-before>` | Position to add missing lines in additive mode (`regex`, `BOF`, or `EOB`/`EOF`) |
 | `--additive-after` | none | `<additive-after>` | Position to add missing lines in additive mode (`regex`, `EOF`, or `EOB`) |
@@ -163,7 +163,7 @@ OPTIONS:
   --attributes <attributes>                              Set file attributes using chattr syntax (e.g., '+i', '-i', '+a')
   --remove-all <remove-all>                              Remove all blocks with specified name(s), space-separated
   --remove-orphans                                       Remove orphaned blocks (blocks with empty content)
-  --envsubst <envsubst>                                  Enable environment variable substitution (true=recursive, non-recursive, false)
+  --envsubst [mode]                                      Enable environment variable substitution. No value or true/recursive = recursive; non-recursive = single-pass; false = off (default: off)
   --additive                                             Additive mode: ensure all input lines are in block, adding missing lines instead of replacing
   --additive-before <additive-before>                    Position to add missing lines in additive mode (regex, BOF for beginning of file, or EOB/EOF for end of block)
   --additive-after <additive-after>                      Position to add missing lines in additive mode (regex, EOF for end of file, or EOB for end of block)

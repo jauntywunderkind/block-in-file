@@ -175,9 +175,16 @@ export default function config() {
         description: "Remove orphaned blocks (blocks with empty content)",
       });
       ctx.addGlobalOption("envsubst", {
-        type: "string",
+        type: "custom",
         description:
-          "Enable environment variable substitution (true=recursive, non-recursive, false)",
+          "Enable environment variable substitution (default: off, options: recursive, non-recursive, true, false)",
+        parse: (value: string): EnvsubstMode | undefined => {
+          if (value === undefined || value === "") return "recursive";
+          if (value === "true" || value === "recursive") return "recursive";
+          if (value === "non-recursive") return "non-recursive";
+          if (value === "false") return false;
+          return undefined;
+        },
       });
       ctx.addGlobalOption("additive", {
         type: "boolean",
@@ -245,15 +252,8 @@ export default function config() {
         mode = modeValue as ModeArg;
       }
 
-      const envsubstValue = ctx.values.envsubst as string | undefined;
-      let envsubst: EnvsubstMode = false;
-      if (envsubstValue === "true" || envsubstValue === "recursive") {
-        envsubst = "recursive";
-      } else if (envsubstValue === "non-recursive") {
-        envsubst = "non-recursive";
-      } else if (envsubstValue === "false") {
-        envsubst = false;
-      }
+      const envsubstValue = ctx.values.envsubst as EnvsubstMode | undefined;
+      const envsubst: EnvsubstMode = envsubstValue ?? false;
 
       const anchorValue = ctx.values.anchor as string | undefined;
       let anchor: AnchorOptions | undefined = undefined;
