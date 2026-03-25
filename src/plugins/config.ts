@@ -111,6 +111,7 @@ export default function config() {
         type: "string",
         short: "C",
         description: "Create file or block if missing (file, block, true, false)",
+        default: "block",
       });
       ctx.addGlobalOption("diff", {
         type: "boolean",
