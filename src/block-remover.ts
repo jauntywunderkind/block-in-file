@@ -31,8 +31,8 @@ export function escapeRegex(str: string): string {
 }
 
 export function removeBlocks(opts: BlockRemoverOptions): { content: string; stats: RemovalStats } {
-  const { fileContent, blockNames, comment, markerStart, markerEnd, removeOrphans, debug, logger } =
-    opts;
+  const { fileContent, blockNames, markerStart, markerEnd, removeOrphans, debug, logger } = opts;
+  const comment = opts.comment.trimEnd();
 
   const lines = fileContent.split("\n");
   const stats: RemovalStats = {

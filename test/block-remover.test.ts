@@ -187,6 +187,23 @@ describe("block-remover", () => {
       expect(stats.blocks[0].content).toBe("lineA\nlineB\nlineC");
     });
 
+    it("removes block when comment has trailing space (no double-space in closer)", () => {
+      const fileContent = "line1\n# tgo start\ncontent\n# tgo end\nline2\n";
+      const { content, stats } = removeBlocks({
+        fileContent,
+        blockNames: ["tgo"],
+        comment: "# ",
+        markerStart: "start",
+        markerEnd: "end",
+        removeOrphans: false,
+        debug: false,
+        logger: { debug: () => {}, log: () => {}, warn: () => {} },
+      });
+
+      expect(content).toBe("line1\nline2\n");
+      expect(stats.removed).toBe(1);
+    });
+
     it("handles mixed orphan and named blocks", () => {
       const fileContent =
         "line1\n# blockinfile start\n\n# blockinfile end\nline2\n# other start\ncontent\n# other end\nline3\n";

@@ -208,7 +208,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     }
 
     const commentMatch = opener.match(/^(#\s*|\/\/\s*)/) || opener.match(/^(\/\/\s*)/);
-    const comment = commentMatch ? commentMatch[1] : "";
+    const comment = commentMatch ? commentMatch[1].trimEnd() : "";
     const openerParts = opener.split(/\s+/);
     const closerParts = closer.split(/\s+/);
     const markerStart = openerParts[openerParts.length - 1] || "start";
