@@ -107,6 +107,7 @@ const command = define<{
         removeAll: configExt.removeAll,
         removeOrphans: configExt.removeOrphans,
         envsubst: configExt.envsubst,
+        envsubstExclude: configExt.envsubstExclude,
         additive: configExt.additive,
         additiveBefore: configExt.additiveBefore,
         additiveAfter: configExt.additiveAfter,

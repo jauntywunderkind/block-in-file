@@ -44,6 +44,7 @@ export interface ProcessContext {
   removeAll?: string;
   removeOrphans?: boolean;
   envsubst?: EnvsubstMode;
+  envsubstExclude?: RegExp;
   additive?: boolean;
   additiveBefore?: string;
   additiveAfter?: string;
@@ -88,6 +89,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     removeAll,
     removeOrphans,
     envsubst,
+    envsubstExclude,
     additive,
     additiveBefore,
     additiveAfter,
@@ -96,7 +98,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     anchor,
   } = ctx;
 
-  const processedInputBlock = envsubst ? substitute(inputBlock, { mode: envsubst }) : inputBlock;
+  const processedInputBlock = envsubst ? substitute(inputBlock, { mode: envsubst, exclude: envsubstExclude }) : inputBlock;
 
   if (debug) {
     logger.debug(`Processing file: ${file}`);

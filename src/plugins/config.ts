@@ -25,6 +25,7 @@ export interface ConfigExtension {
   dos: boolean;
   debug: boolean;
   envsubst?: EnvsubstMode;
+  envsubstExclude?: RegExp;
   input: string;
   output: string;
   create?: CreateArg;
@@ -187,6 +188,11 @@ export default function config() {
           return undefined;
         },
       });
+      ctx.addGlobalOption("envsubst-exclude", {
+        type: "string",
+        description:
+          "Regex pattern for variable names to exclude from envsubst (e.g., 'ZIM_CONFIG_FILE' or 'ZIM_.*')",
+      });
       ctx.addGlobalOption("additive", {
         type: "boolean",
         description:
@@ -256,6 +262,11 @@ export default function config() {
       const envsubstValue = ctx.values.envsubst as EnvsubstMode | undefined;
       const envsubst: EnvsubstMode = envsubstValue ?? false;
 
+      const envsubstExcludeValue = ctx.values["envsubst-exclude"] as string | undefined;
+      const envsubstExclude: RegExp | undefined = envsubstExcludeValue
+        ? new RegExp(envsubstExcludeValue)
+        : undefined;
+
       const anchorValue = ctx.values.anchor as string | undefined;
       let anchor: AnchorOptions | undefined = undefined;
       if (anchorValue) {
@@ -275,6 +286,7 @@ export default function config() {
         dos: ctx.values.dos as boolean,
         debug: ctx.values.debug as boolean,
         envsubst,
+        envsubstExclude,
         input: ctx.values.input as string,
         output: ctx.values.output as string,
         create,
