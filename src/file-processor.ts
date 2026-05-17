@@ -45,6 +45,9 @@ export interface ProcessContext {
   removeOrphans?: boolean;
   envsubst?: EnvsubstMode;
   envsubstExclude?: RegExp;
+  sourceAttribution?: boolean;
+  sourceLine?: string;
+  sourceLinePrefix?: string;
   additive?: boolean;
   additiveBefore?: string;
   additiveAfter?: string;
@@ -90,6 +93,8 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     removeOrphans,
     envsubst,
     envsubstExclude,
+    sourceLine,
+    sourceLinePrefix,
     additive,
     additiveBefore,
     additiveAfter,
@@ -279,7 +284,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
   }
 
   const blockExists = fileContent.includes(opener);
-  const wouldChange = blockWouldChange(fileContent, processedInputBlock, opener, closer);
+  const wouldChange = blockWouldChange(fileContent, processedInputBlock, opener, closer, sourceLinePrefix);
   const state = detectBlockState(ctx.fileExists, blockExists, wouldChange);
 
   if (mode && mode !== "none") {
@@ -310,6 +315,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     additiveAfter: parsedAdditiveAfter,
     actualOpener: finalTags.length > 0 ? actualOpener : undefined,
     anchor,
+    sourceLine,
   });
 
   const outputText = formatOutputs(result.outputs, dos);
@@ -371,6 +377,7 @@ function blockWouldChange(
   inputBlock: string,
   opener: string,
   closer: string,
+  sourceLinePrefix?: string,
 ): boolean {
   const openerIndex = fileContent.indexOf(opener);
   if (openerIndex === -1) {
@@ -384,7 +391,10 @@ function blockWouldChange(
 
   const blockContent = fileContent.slice(openerIndex + opener.length, closerIndex);
   const lines = blockContent.split("\n");
-  const content = lines.slice(1).join("\n");
+  const content = lines
+    .slice(1)
+    .filter((line) => !sourceLinePrefix || !line.startsWith(sourceLinePrefix))
+    .join("\n");
 
   return content.trim() !== inputBlock.trim();
 }

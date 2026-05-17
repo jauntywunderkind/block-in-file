@@ -19,6 +19,8 @@ export interface ParseOptions {
   actualOpener?: string;
   actualCloser?: string;
   anchor?: AnchorInfo;
+  sourceLine?: string;
+  sourceLinePrefix?: string;
 }
 
 export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): ParseResult {
@@ -35,6 +37,8 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
     actualOpener,
     actualCloser,
     anchor,
+    sourceLine,
+    sourceLinePrefix,
   } = opts;
   const match = before || after;
   const outputs: string[] = [];
@@ -60,8 +64,20 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
     return stripTagsForMatching(line.trim()) === closer;
   };
 
+  const isSourceLine = (line: string) => {
+    return sourceLinePrefix ? line.trim().startsWith(sourceLinePrefix) : false;
+  };
+
+  const pushBlock = (contentLines: string[]) => {
+    if (sourceLine) {
+      outputs.push(outputOpener, sourceLine, ...contentLines, outputCloser);
+    } else {
+      outputs.push(outputOpener, ...contentLines, outputCloser);
+    }
+  };
+
   if (before === true) {
-    outputs.push(outputOpener, ...inputLines, outputCloser);
+    pushBlock(inputLines);
     if (appendNewline) {
       outputs.push("");
     }
@@ -77,7 +93,7 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
       blockStartIndex = outputs.length;
     } else if (isOpen) {
       if (!isCloser(line)) {
-        if (additive) {
+        if (additive && !isSourceLine(line)) {
           blockContentLines.push(line);
         }
         continue;
@@ -134,12 +150,12 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
             newContentLines = [...blockContentLines, ...missingLines];
           }
 
-          outputs.push(outputOpener, ...newContentLines, outputCloser);
+          pushBlock(newContentLines);
         } else {
-          outputs.push(outputOpener, ...blockContentLines, outputCloser);
+          pushBlock(blockContentLines);
         }
       } else {
-        outputs.push(outputOpener, ...inputLines, outputCloser);
+        pushBlock(inputLines);
       }
 
       if (appendNewline) {
@@ -156,7 +172,7 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
   }
 
   if (opened !== undefined) {
-    outputs.push(outputOpener, ...inputLines, outputCloser);
+    pushBlock(inputLines);
     if (appendNewline) {
       outputs.push("");
     }
@@ -167,18 +183,21 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
     if (anchor && matched === -1 && !before && !after) {
       const existingBlocks = findBlocksAndAnchors(lines, opener, closer);
       const insertPos = calculateInsertPosition(lines, anchor, existingBlocks);
-      outputs.splice(insertPos, 0, outputOpener, ...inputLines, outputCloser);
+      const blockLines = sourceLine ? [outputOpener, sourceLine, ...inputLines, outputCloser] : [outputOpener, ...inputLines, outputCloser];
+      outputs.splice(insertPos, 0, ...blockLines);
       if (appendNewline) {
-        outputs.splice(insertPos + inputLines.length + 2, 0, "");
+        outputs.splice(insertPos + blockLines.length, 0, "");
       }
       matched = insertPos;
     } else {
       if (matched === -1) {
         matched = i;
       }
-      outputs.splice(matched + (after ? 1 : 0), 0, outputOpener, ...inputLines, outputCloser);
+      const insertOffset = matched + (after ? 1 : 0);
+      const blockLines = sourceLine ? [outputOpener, sourceLine, ...inputLines, outputCloser] : [outputOpener, ...inputLines, outputCloser];
+      outputs.splice(insertOffset, 0, ...blockLines);
       if (appendNewline) {
-        outputs.splice(matched + (after ? 1 : 0) + inputLines.length + 2, 0, "");
+        outputs.splice(insertOffset + blockLines.length, 0, "");
       }
     }
   }

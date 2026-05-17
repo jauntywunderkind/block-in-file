@@ -18,7 +18,7 @@ describe("timestamp CLI integration", () => {
   });
 
   const runBlockInFile = (args: string[], input?: string): string => {
-    const cmd = `node block-in-file.ts ${args.join(" ")}`;
+    const cmd = `node block-in-file.ts ${args.join(" ")} --source-attribution=false`;
     return execSync(cmd, { encoding: "utf-8", cwd: "/home/rektide/src/block-in-file", input });
   };
 

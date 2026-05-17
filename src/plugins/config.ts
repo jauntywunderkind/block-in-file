@@ -26,6 +26,7 @@ export interface ConfigExtension {
   debug: boolean;
   envsubst?: EnvsubstMode;
   envsubstExclude?: RegExp;
+  sourceAttribution: boolean;
   input: string;
   output: string;
   create?: CreateArg;
@@ -193,6 +194,16 @@ export default function config() {
         description:
           "Regex pattern for variable names to exclude from envsubst (e.g., 'ZIM_CONFIG_FILE' or 'ZIM_.*')",
       });
+      ctx.addGlobalOption("source-attribution", {
+        type: "custom",
+        description:
+          "Record input source as comment below block header (default: true)",
+        parse: (value: string): boolean | undefined => {
+          if (value === undefined || value === "") return true;
+          if (value === "false" || value === "0") return false;
+          return true;
+        },
+      });
       ctx.addGlobalOption("additive", {
         type: "boolean",
         description:
@@ -267,6 +278,9 @@ export default function config() {
         ? new RegExp(envsubstExcludeValue)
         : undefined;
 
+      const sourceAttributionValue = ctx.values["source-attribution"] as boolean | undefined;
+      const sourceAttribution: boolean = sourceAttributionValue !== false;
+
       const anchorValue = ctx.values.anchor as string | undefined;
       let anchor: AnchorOptions | undefined = undefined;
       if (anchorValue) {
@@ -287,6 +301,7 @@ export default function config() {
         debug: ctx.values.debug as boolean,
         envsubst,
         envsubstExclude,
+        sourceAttribution,
         input: ctx.values.input as string,
         output: ctx.values.output as string,
         create,

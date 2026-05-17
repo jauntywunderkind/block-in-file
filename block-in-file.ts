@@ -108,6 +108,12 @@ const command = define<{
         removeOrphans: configExt.removeOrphans,
         envsubst: configExt.envsubst,
         envsubstExclude: configExt.envsubstExclude,
+        sourceLine: configExt.sourceAttribution
+          ? `${configExt.comment} source: ${configExt.input === "-" ? "<STDIN>" : configExt.input}`
+          : undefined,
+        sourceLinePrefix: configExt.sourceAttribution
+          ? `${configExt.comment} source:`
+          : undefined,
         additive: configExt.additive,
         additiveBefore: configExt.additiveBefore,
         additiveAfter: configExt.additiveAfter,
