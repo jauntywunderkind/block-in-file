@@ -1,4 +1,4 @@
-import type { Document } from "../document/types.ts";
+import type { SourceRevision } from "../source/revision.ts";
 import { isOffsetSpan } from "../source/spans.ts";
 
 export type Placement =
@@ -22,7 +22,7 @@ function matches(pattern: RegExp, text: string): boolean {
 }
 
 export function resolvePlacement(
-  document: Document<unknown>,
+  document: SourceRevision,
   placement: Placement,
 ): number | PlacementFailure {
   if (placement.kind === "offset") {
