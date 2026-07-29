@@ -767,3 +767,332 @@ why a managed block changed can explain a parser-selected systemd directive or
 a deferred Markdown insertion. The managed plugin gains structured facts,
 origins, plans, and conflict reporting; ordinary block-in-file callers retain a
 small friendly facade.
+
+# Addendum: Implementation Attack Plan
+
+## Outcome
+
+Build a pure reconciliation runtime in which plugins analyze one immutable
+retained revision, emit origin-attributed facts and checked edit intents into
+named plans, and never mutate source directly. Preserve `block-in-file` as the
+built-in managed plugin and familiar CLI facade. Make `systemd-units` the first
+semantic-parser plugin host and a Markdown/changelog assembly the first
+stateful line-fold plugin.
+
+The target lifecycle is:
+
+```mermaid
+flowchart LR
+  Source[Source text] --> Revision[Inspect revision]
+  Revision --> Stage[Run ordered plugin passes]
+  Stage --> Report[Facts, diagnostics, named plans]
+  Report --> Select[Select plans]
+  Select --> Apply[Validate and apply once]
+  Apply --> Next[Fresh revision]
+  Next --> Validate[Optional validation stage]
+```
+
+Every edge after `Revision` is in-memory and pure. Node hosts are responsible
+only for assembling plugins, selecting plans, rendering reports or diffs, and
+performing the final file effects.
+
+## Starting Point
+
+The repository already contains the low-level pieces that should survive this
+work:
+
+| Existing capability     | Keep                                                | Change                                                                         |
+| ----------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Physical line index     | Exact source partition and terminator preservation. | Attach it to an opaque revision identity.                                      |
+| Checked `apply()`       | Bounds, stale-text, and overlap validation.         | Preserve it as the sole splice engine; enrich failures with originating edits. |
+| `ReconciliationSession` | Fresh inspection after each successful apply.       | Recast it as a revision/stage coordinator.                                     |
+| `ContextTracker`        | Useful state-only line fold.                        | Implement it through the new snapshot line-pass adapter.                       |
+| `planBlock()`           | Existing managed behavior and policy vocabulary.    | Break it into marker-fact and ownership-planning passes.                       |
+| CLI effects             | Familiar command interface and one-write boundary.  | Make it a Node host over selected managed-plugin plans.                        |
+
+Do not port the legacy `split("\n")` parser loop into the new runtime. It is a
+compatibility behavior source and test oracle, not the architecture to extend.
+
+## Stage 1: Revision-Bound Kernel
+
+Introduce the data model before introducing plugin registration.
+
+```text
+src/
+  source/
+    revision.ts       SourceRevision, RevisionId, revision-bound spans
+  runtime/
+    origin.ts         Origin, invocation, fact/edit/plan IDs
+    facts.ts          Fact records and revision-safe queries
+    plans.ts          Plan records and edit-intent collection
+    report.ts         Stage and apply reports
+```
+
+Implementation rules:
+
+1. `inspect(text)` creates a new `SourceRevision` with a fresh opaque ID.
+2. A revision-bound span cannot be planned or queried against another revision.
+3. `CheckedSpan` remains the actual splice precondition; revision identity is an
+   additional earlier guard, not a replacement for exact expected text.
+4. `Origin` is created by the runtime from active plugin/pass metadata and an
+   invocation ID. Plugin emission APIs accept only optional stable `rule` IDs.
+5. Facts and edits receive runtime-generated IDs. An edit may reference fact
+   IDs as evidence.
+
+Acceptance tests:
+
+- equal source strings from separate inspections cannot exchange facts or spans;
+- stale expected text remains rejected even when a revision ID is accidentally
+  retained;
+- reports retain structured origins through successful and failed applications;
+- existing LF, CRLF, lone-CR, mixed-ending, no-final-newline, and Unicode
+  preservation tests remain unchanged.
+
+Commit boundary: `Add revision-bound reconciliation records`.
+
+## Stage 2: Plans And Origin-Aware Application
+
+Replace the bare `EditPlan` collection at the runtime boundary with a
+revision-bound `PlanSet`. It must be possible to explain not only that an edit
+overlapped, but which plugin, pass, rule, and evidence proposed each side.
+
+```ts
+export type PlanSet = Readonly<{
+  revision: RevisionId;
+  plans: readonly PlanReport[];
+}>;
+
+export function applyPlans(
+  revision: SourceRevision,
+  selected: readonly PlanId[],
+  plans: PlanSet,
+): ApplyReport | ApplyFailure;
+```
+
+Initial semantics:
+
+1. Each pass owns an implicit `default` plan.
+2. A plugin can declare additional names, but no plan dependencies or partial
+   rebase behavior exist yet.
+3. Selection flattens edits from all selected plans against one revision.
+4. The runtime rejects any overlap, including equal-offset insertions, with the
+   full conflicting edit records.
+5. A successful application returns the next `SourceRevision`, changed spans,
+   selected plans, and provenance.
+
+Acceptance tests:
+
+- two plugin edits at the same point fail with both structured origins;
+- an unselected plan cannot change source;
+- a no-op selected plan produces the original retained string and a
+  `changed: false` report;
+- plan and revision mismatch failures cannot be hidden by identical text.
+
+Commit boundary: `Add named reconciliation plans`.
+
+## Stage 3: Pure Plugin Registry And Scheduler
+
+Build the public plugin contract in the pure runtime. Do not add dynamic module
+loading here.
+
+```text
+src/runtime/
+  plugin.ts           Plugin manifests and pass descriptors
+  scheduler.ts        Registry validation and ordered stage execution
+  context.ts          FactQuery and capability-limited PassEmitter
+```
+
+The initial scheduler runs one **stage** against one revision:
+
+1. The host supplies concrete plugin values and optional configuration closures.
+2. The registry rejects duplicate plugin/pass identities and unknown `after`
+   references.
+3. The scheduler topologically orders passes by `after`.
+4. Each pass receives the same revision and facts emitted by earlier ordered
+   passes in that stage.
+5. Pass emissions flow only through the runtime collector, which adds revision,
+   origin, IDs, and implicit plan assignment.
+6. The stage returns a `StageReport` containing facts, diagnostics, and plans.
+
+There is intentionally no automatic apply during stage execution. A plugin that
+needs transformed source runs in a later explicit stage after the host or
+session applies selected plans and obtains a new revision.
+
+Acceptance tests:
+
+- stable topological order and cycle diagnostics;
+- a dependent pass can query its declared predecessor's facts;
+- no pass can query facts from another revision;
+- collector emissions carry the active origin rather than plugin-supplied
+  origin fields;
+- a pass cannot call an application API through its context.
+
+Commit boundary: `Add pure reconciliation plugin scheduler`.
+
+## Stage 4: Snapshot Line-Pass Adapter
+
+Implement `SnapshotLinePass` as an adapter over ordinary reconciliation passes,
+not as a separate execution engine.
+
+```text
+src/runtime/
+  line-pass.ts        initial -> line* -> finish adapter
+```
+
+The adapter supplies exact `PhysicalLine` values from the current revision and
+the normal capability-limited context. It always calls `finish`, including for
+empty source. It never applies an edit while walking.
+
+Build one small fixture-only pass first:
+
+- observe a trigger line;
+- retain pending state across later lines;
+- emit an insertion when the next blank line occurs;
+- emit a different insertion through `finish()` when no blank line occurs.
+
+Acceptance tests:
+
+- deferred edits remain checked against the original revision;
+- EOF and empty-source behavior are explicit;
+- a line pass cannot make later line callbacks observe its own replacement;
+- mixed terminators are retained outside the emitted edit.
+
+Commit boundary: `Add snapshot line-pass adapter`.
+
+## Stage 5: Port Managed Blocks Into A Built-In Plugin
+
+This is the compatibility-critical migration. Retain the existing friendly
+facade while changing its internals to use the new runtime.
+
+```text
+src/plugins/managed/
+  manifest.ts          Built-in plugin identity and configuration factory
+  marker-scan.ts       Marker facts and integrity diagnostics
+  ownership-plan.ts    Present/missing policy to edit intents
+  render.ts            Marker envelope and line-ending policy
+src/managed/
+  facade.ts            ensureBlock-style compatibility facade
+```
+
+The marker scan pass must own strict structural facts:
+
+- tag-stripped managed identity;
+- opener, payload, closer, and envelope spans;
+- duplicate identities, nesting, orphan openers/closers, and mismatches;
+- marker metadata, including tags and source attribution.
+
+The ownership planner queries exactly one matching block fact and emits an edit
+into the managed plugin's default or declared plan. It must make insert, keep,
+update, remove, adopt, and take-over outcomes report data rather than hidden
+branches.
+
+Port behavior deliberately in slices:
+
+1. strict replacement/update and no-op detection;
+2. explicit placement and removal;
+3. tag identity, timestamps, and source attribution;
+4. additive merge and anchor ordering;
+5. legacy CLI modes translated at the host boundary.
+
+After each slice, run the existing managed and CLI characterization tests
+through the new facade. Add preservation fixtures where legacy reconstruction
+previously normalized endings.
+
+Commit boundaries: one behaviorally complete slice each, for example
+`Port managed marker scanning` and `Plan managed ownership updates`.
+
+## Stage 6: Turn The CLI Into A Node Host
+
+The CLI reads file and user input, constructs a configured managed plugin,
+runs one stage, selects plans, optionally renders a diff, and writes once. It
+does not parse marker syntax or calculate offsets itself.
+
+```text
+CLI flags -> managed-plugin configuration -> StageReport -> selected plans
+  -> ApplyReport -> optional validation/backup/attributes -> one write
+```
+
+Environment substitution, timestamps, backup, external validation commands,
+file attributes, and atomic writes remain Node-host concerns. They may prepare
+plugin configuration or consume an `ApplyReport`; they are never pure plugin
+effects.
+
+Acceptance tests:
+
+- all current CLI intended behaviors use the managed plugin path;
+- preview and output modes do not write;
+- validation failure leaves the original file unchanged;
+- a no-op plan performs no write;
+- CRLF and absent-final-newline fixtures retain untouched source exactly.
+
+Commit boundary: `Run CLI through managed reconciliation plugin`.
+
+## Stage 7: Build The Systemd Plugin
+
+The `systemd-units` repository now exposes whole-directive UTF-16 ranges. Build
+the systemd plugin as an opt-in integration, likely hosted by
+`systemd-units/block-in-file` with `block-in-file` as an optional peer
+dependency. Keep the core package free of systemd imports.
+
+The first plugin workflow:
+
+1. Parse the retained revision with `UnitDocument`.
+2. Emit directive facts with section, key, occurrence, continuation state, and
+   source span.
+3. Resolve a user-visible exact selection; reject missing and ambiguous facts.
+4. Reject continued directives until full whole-directive behavior is proven.
+5. Emit one checked raw replacement or managed take-over intent.
+6. Apply selected plans to get a fresh revision.
+7. Run a validation stage that reparses revision 1 and rejects newly introduced
+   diagnostics or a result outside the selected section.
+
+Acceptance tests must include a non-ASCII prefix before the selected directive,
+CRLF, indentation, trailing whitespace, no final newline, stale selection,
+ambiguity, continuation rejection, and diagnostic regression.
+
+Commit boundary: `Add systemd reconciliation plugin` in the consumer repository.
+
+## Stage 8: Prove A Different Plugin Shape
+
+Build a Markdown changelog plugin as a maintained experimental assembly. It
+must use `SnapshotLinePass`, not an external Markdown parser, for the first
+probe:
+
+- emit heading facts while tracking heading levels;
+- select one explicit release heading;
+- defer an insertion until the next sibling heading, a blank boundary, or EOF;
+- report the specific heading fact as edit evidence;
+- keep all edits in a named `changelog-entry` plan.
+
+This is not a detour from block-in-file. It proves that the public plugin
+contract serves a non-marker, non-systemd, deferred-edit use case without
+special runtime behavior.
+
+Commit boundary: `Add experimental changelog line plugin`.
+
+## Public Release Gates
+
+The plugin API is intentionally public, but each capability needs a concrete
+release gate:
+
+| Capability                                                        | Release when                                                                                             |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Plugin manifests, passes, origins, fact collector, implicit plans | Stages 1-3 have complete origin, revision, ordering, and conflict tests.                                 |
+| `SnapshotLinePass`                                                | Stage 4 proves EOF and deferred emission behavior.                                                       |
+| Named plan selection                                              | At least managed and changelog plugins expose meaningful non-default plan names.                         |
+| Node plugin module loading                                        | Two independently packaged plugins establish an import and configuration convention.                     |
+| Plan dependencies across revisions                                | A maintained consumer needs apply-and-reinspect ordering that cannot be expressed by host orchestration. |
+| Sandboxing or worker isolation                                    | Plugins are loaded from untrusted sources or CPU isolation is a demonstrated requirement.                |
+| Multi-file transaction                                            | A host needs all-or-nothing reconciliation across more than one retained revision.                       |
+
+## Order Of Work
+
+Implement stages 1 through 4 before porting a broad set of legacy flags. They
+are the new foundation. Then port the managed plugin enough to prove the
+original product remains excellent, move the CLI host, and build the systemd
+plugin. The Markdown assembly is the deliberate check that the runtime is not
+merely a disguised managed-block implementation.
+
+At every commit, preserve one invariant: **a fact or edit with an origin from
+revision N can never silently affect revision N+1.** That invariant is the
+reason the framework can be both generic and safe.
