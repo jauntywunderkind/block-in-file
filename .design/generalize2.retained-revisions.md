@@ -602,3 +602,168 @@ checked edit intents. Blocks remain a fully supported built-in plugin, not the
 limit of the model. The plugin contract is constrained enough to preserve
 lossless correctness while broad enough for semantic parsers, physical-line
 folds, and future host integrations.
+
+# Addendum: Case Study - Original Managed Block Workflow
+
+## Purpose
+
+The generalized plugin runtime must not make the original purpose of
+`block-in-file` harder or less legible. A caller who wants to ensure named,
+visible generated content in one file should still receive one familiar
+operation, one reviewable result, and at most one external write.
+
+Managed blocks are therefore a built-in plugin and default facade, not an
+example application that users must reimplement with low-level passes.
+
+```ts
+const result = await ensureBlock({
+  file: "/etc/example.conf",
+  block: {
+    name: "example-agent",
+    dialect: hashCommentMarkers,
+    content: "agent.enabled=true\nagent.port=8080",
+  },
+  whenPresent: { kind: "update" },
+  whenMissing: { kind: "insert", placement: { kind: "edge", edge: "EOF" } },
+});
+```
+
+The facade is assembly code. Internally it configures the managed plugin,
+selects its default named plan, previews or applies it, and delegates the one
+file write to the Node host. Ordinary callers never need to name a revision,
+fact, pass, plan, or origin record.
+
+## Input Revision
+
+Consider this retained source revision with deliberately mixed concerns:
+
+```text
+# maintained by an administrator
+server.listen=127.0.0.1:8080
+
+# example-agent start [timestamp:2026-07-29T12:00:00Z]
+agent.enabled=false
+# example-agent end
+```
+
+The desired content is:
+
+```text
+agent.enabled=true
+agent.port=8080
+```
+
+The source text, its physical terminators, the final-newline state, and every
+UTF-16 coordinate are retained in revision 0. No plugin begins by splitting
+lines and reconstructing the file.
+
+## Managed Plugin Passes
+
+The managed plugin has a small internal pipeline. Each pass reports structured
+origins such as:
+
+```ts
+{
+  plugin: { id: "block-in-file/managed", version: "2" },
+  pass: "marker-scan",
+  rule: "tag-stripped-identity",
+  invocation: "...",
+}
+```
+
+### 1. Marker Scan
+
+`marker-scan` walks physical lines in the retained revision and emits a
+`managed-block` fact for each complete marker envelope. The fact includes:
+
+- the tag-stripped identity, `example-agent`;
+- opener, payload, closer, and complete-envelope spans;
+- parsed marker metadata such as timestamp tags;
+- the exact line terminator around the envelope; and
+- a structural diagnostic if the source has duplicate identities, nesting,
+  orphan markers, or mismatched pairs.
+
+This is a snapshot line-fold pass. It needs `finish()` to report an opener that
+remains unclosed at EOF. It emits facts and diagnostics only; it does not
+rewrite the file while scanning.
+
+### 2. Ownership Planner
+
+`managed-ownership` queries for exactly one `managed-block` fact with the
+requested identity. It applies the request's visible policy:
+
+| Observed state                        | Request policy           | Result                                                                 |
+| ------------------------------------- | ------------------------ | ---------------------------------------------------------------------- |
+| One valid block and changed payload   | `whenPresent: update`    | Checked replacement of the envelope or payload.                        |
+| One valid block and identical payload | `whenPresent: update`    | Empty plan and `kept`/no-change report.                                |
+| One valid block                       | `whenPresent: keep`      | Empty plan and `kept` report.                                          |
+| One valid block                       | `whenPresent: remove`    | Checked deletion of the exact envelope.                                |
+| No block                              | `whenMissing: insert`    | Checked point insertion at an explicit placement fact or edge.         |
+| No block and selected known source    | `whenMissing: take-over` | Checked span replacement with a rendered envelope.                     |
+| No block and selected known source    | `mode: adopt`            | The same envelope operation, retaining the selected payload unchanged. |
+| Duplicate or malformed markers        | Any mutation policy      | Structured integrity failure; no plan.                                 |
+
+For the example, the planner emits one checked replacement intent. Its
+`expected` range is the exact old envelope from revision 0, including the
+timestamped opener. Its replacement renders the requested markers and desired
+payload using the selected generated-content line-ending policy. The intent
+records evidence pointing to the discovered `managed-block` fact.
+
+The runtime collects this intent in the managed plugin's implicit `default`
+plan. A future caller may select a specifically named maintenance plan, but the
+ordinary facade need not expose that choice.
+
+### 3. One Checked Application
+
+The runtime validates that the revision identity, bounds, and expected envelope
+still match. It rejects an overlapping intent from another selected plugin
+rather than silently choosing one. On success, it applies all selected edits
+right to left and creates revision 1:
+
+```text
+# maintained by an administrator
+server.listen=127.0.0.1:8080
+
+# example-agent start
+agent.enabled=true
+agent.port=8080
+# example-agent end
+```
+
+Every source code unit outside the old envelope is identical to revision 0.
+The runtime report contains the managed plugin's structured origin, the fact
+that justified the action, the named plan, changed spans, and outcome
+`updated`.
+
+The Node host may now preview a diff, make a backup, run an external validator,
+and atomically write revision 1. Those are host effects. The plugin and pure
+runtime have performed no I/O.
+
+## Idempotence Is Still A First-Class Result
+
+On the next invocation, the marker scan produces the block fact from revision
+
+1. The ownership planner sees that its desired rendered payload is already
+   present and emits no edit intent. The selected plan reports `changed: false`
+   and `outcome: kept` or `updated`-as-no-op according to the facade vocabulary.
+
+The host therefore does not write the file. Idempotence is not an incidental
+property of a forward text stream; it follows from a fact about a retained
+revision and a planner that proves the desired state already exists.
+
+## What Generalization Does Not Change
+
+The user-visible behavior remains recognizably `block-in-file`:
+
+- named marker blocks are visible durable ownership;
+- updates, inserts, adoptions, take-overs, and removals remain explicit;
+- tags, timestamps, attribution, additive behavior, anchors, and placement are
+  managed-plugin policies rather than runtime modes;
+- source outside a checked change remains lossless;
+- one command can still produce one preview and one write.
+
+What changes is the implementation boundary. The same runtime that explains
+why a managed block changed can explain a parser-selected systemd directive or
+a deferred Markdown insertion. The managed plugin gains structured facts,
+origins, plans, and conflict reporting; ordinary block-in-file callers retain a
+small friendly facade.
