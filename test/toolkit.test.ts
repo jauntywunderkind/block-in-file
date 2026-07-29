@@ -7,12 +7,17 @@ import {
   inspect,
   one,
   planInsert,
+  planReplace,
   replace,
   replaceChecked,
   resolvePlacement,
   walk,
 } from "../src/toolkit.ts";
-import { inspectManagedBlocks, reconcileBlock as reconcileManagedBlock } from "../src/index.ts";
+import {
+  inspectManagedBlocks,
+  planBlock as reconcileManagedBlockPlan,
+  reconcileBlock as reconcileManagedBlock,
+} from "../src/index.ts";
 
 describe("lossless source toolkit", () => {
   it("indexes every physical terminator without reconstructing source", () => {
@@ -94,6 +99,40 @@ describe("lossless source toolkit", () => {
     ).toMatchObject({ changed: true });
     expect(session.preview().text).toBe("first\nsecond");
     expect(session.steps).toHaveLength(2);
+  });
+
+  it("composes managed and raw planners against fresh immutable revisions", () => {
+    const session = beginReconciliation("[Service]\nExecStart=/bin/old\n");
+    const managed = session.reconcile((document) =>
+      reconcileManagedBlockPlan(document, {
+        block: {
+          dialect: { opener: "# app start", closer: "# app end" },
+          content: "Environment=MODE=prod",
+        },
+        whenPresent: { kind: "update" },
+        whenMissing: {
+          kind: "take-over",
+          span: checkedSpan(document.text, { start: 10, end: 29 })!,
+          mode: "replace",
+        },
+      }),
+    );
+    expect(managed).toMatchObject({ report: { outcome: "replaced" } });
+
+    const raw = session.reconcile((document) => ({
+      plan: planReplace(
+        document,
+        checkedSpan(document.text, { start: 0, end: 9 })!,
+        "[ServiceX]",
+        "rename section",
+      ),
+      kind: "renamed-section",
+    }));
+    expect(raw).toMatchObject({ report: { kind: "renamed-section" } });
+    expect(session.preview()).toMatchObject({
+      text: "[ServiceX]\n# app start\nEnvironment=MODE=prod\n# app end\n",
+      steps: [{ report: { outcome: "replaced" } }, { report: { kind: "renamed-section" } }],
+    });
   });
 
   it("allows inspectors and context tracking to share exact line coordinates", () => {

@@ -18,7 +18,12 @@ export type { Placement, PlacementFailure } from "./reconcile/placement.ts";
 export { planInsert, planReplace, replaceChecked } from "./reconcile/raw.ts";
 export type { CheckedReplacement } from "./reconcile/raw.ts";
 export { beginReconciliation } from "./reconcile/session.ts";
-export type { ReconciliationSession, ReconciliationStep } from "./reconcile/session.ts";
+export type {
+  ReconciliationPlanner,
+  ReconciliationResult,
+  ReconciliationSession,
+  ReconciliationStep,
+} from "./reconcile/session.ts";
 export { indexPhysicalLines, inheritedTerminator } from "./source/lines.ts";
 export type { LineTerminator, PhysicalLine } from "./source/lines.ts";
 export { checkedSpan, isSourceSpan } from "./source/spans.ts";
