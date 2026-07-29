@@ -1,5 +1,5 @@
 import type { Document } from "../document/types.ts";
-import { isSourceSpan } from "../source/spans.ts";
+import { isOffsetSpan } from "../source/spans.ts";
 
 export type Placement =
   | Readonly<{ kind: "offset"; at: number }>
@@ -26,7 +26,7 @@ export function resolvePlacement(
   placement: Placement,
 ): number | PlacementFailure {
   if (placement.kind === "offset") {
-    return isSourceSpan({ start: placement.at, end: placement.at }, document.text.length)
+    return isOffsetSpan({ start: placement.at, end: placement.at }, document.text.length)
       ? placement.at
       : { code: "placement-out-of-bounds", at: placement.at };
   }

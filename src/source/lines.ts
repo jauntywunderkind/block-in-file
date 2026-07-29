@@ -1,3 +1,4 @@
+import type { RevisionId } from "./revision.ts";
 import type { SourceSpan } from "./spans.ts";
 
 export type LineTerminator = "\n" | "\r\n" | "\r" | "";
@@ -10,7 +11,7 @@ export type PhysicalLine = Readonly<{
 }>;
 
 /** Index lines without splitting or reassembling the retained source. */
-export function indexPhysicalLines(text: string): readonly PhysicalLine[] {
+export function indexPhysicalLines(text: string, revision: RevisionId): readonly PhysicalLine[] {
   const lines: PhysicalLine[] = [];
   let start = 0;
   let number = 1;
@@ -27,7 +28,7 @@ export function indexPhysicalLines(text: string): readonly PhysicalLine[] {
     lines.push({
       number,
       text: text.slice(start, index),
-      span: { start, end },
+      span: { revision, start, end },
       terminator,
     });
     number++;
@@ -39,7 +40,7 @@ export function indexPhysicalLines(text: string): readonly PhysicalLine[] {
     lines.push({
       number,
       text: text.slice(start),
-      span: { start, end: text.length },
+      span: { revision, start, end: text.length },
       terminator: "",
     });
   }

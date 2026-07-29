@@ -1,6 +1,6 @@
 import type { Document, InspectDiagnostic } from "../document/types.ts";
 import { inheritedTerminator, type LineTerminator, type PhysicalLine } from "../source/lines.ts";
-import type { CheckedSpan, SourceSpan } from "../source/spans.ts";
+import { checkedSpan, sourceSpan, type CheckedSpan, type SourceSpan } from "../source/spans.ts";
 
 export type MarkerDialect = Readonly<{
   opener: string;
@@ -56,12 +56,8 @@ export function inspectManagedBlocks(
     }
 
     blocks.push({
-      span: { start: opener.span.start, end: line.span.end },
-      content: {
-        start: opener.span.end,
-        end: line.span.start,
-        expected: document.text.slice(opener.span.end, line.span.start),
-      },
+      span: sourceSpan(document, { start: opener.span.start, end: line.span.end })!,
+      content: checkedSpan(document, { start: opener.span.end, end: line.span.start })!,
       opener,
       closer: line,
     });

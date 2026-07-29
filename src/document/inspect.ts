@@ -1,11 +1,18 @@
-import { indexPhysicalLines } from "../source/lines.ts";
-import type { Document, InspectionAssembly, InspectDiagnostic, SourceDocument } from "./types.ts";
+import { createSourceRevision } from "../source/revision.ts";
+import type { SourceRevision } from "../source/revision.ts";
+import type { Document, InspectionAssembly, InspectDiagnostic } from "./types.ts";
 
 export function inspect<Fact = never>(
   text: string,
   assembly: InspectionAssembly<Fact> = {},
 ): Document<Fact> {
-  const source: SourceDocument = { text, lines: indexPhysicalLines(text) };
+  return inspectRevision(createSourceRevision(text), assembly);
+}
+
+export function inspectRevision<Fact = never>(
+  source: SourceRevision,
+  assembly: InspectionAssembly<Fact> = {},
+): Document<Fact> {
   const facts: Fact[] = [];
   const diagnostics: InspectDiagnostic[] = [];
 
@@ -15,5 +22,9 @@ export function inspect<Fact = never>(
     diagnostics.push(...(result.diagnostics ?? []));
   }
 
-  return { ...source, facts, diagnostics };
+  return Object.freeze({
+    ...source,
+    facts: Object.freeze(facts),
+    diagnostics: Object.freeze(diagnostics),
+  });
 }

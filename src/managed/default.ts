@@ -2,7 +2,7 @@ import type { Document } from "../document/types.ts";
 import { apply, isApplyFailure, replace } from "../reconcile/apply.ts";
 import { resolvePlacement, type Placement, type PlacementFailure } from "../reconcile/placement.ts";
 import type { ApplyFailure, Change, EditPlan } from "../reconcile/plan.ts";
-import type { CheckedSpan } from "../source/spans.ts";
+import { checkedSpan, type CheckedSpan } from "../source/spans.ts";
 import {
   documentTerminator,
   inspectManagedBlocks,
@@ -96,19 +96,13 @@ export function planBlock(
       return { code: "managed-block-present" };
     }
     if (request.whenPresent.kind === "keep") {
-      return { plan: { source: document.text, edits: [] }, outcome: "kept", block };
+      return { plan: { revision: document.id, edits: [] }, outcome: "kept", block };
     }
     if (request.whenPresent.kind === "remove") {
       return {
         plan: {
-          source: document.text,
-          edits: [
-            replace(
-              { ...block.span, expected: document.text.slice(block.span.start, block.span.end) },
-              "",
-              "remove managed block",
-            ),
-          ],
+          revision: document.id,
+          edits: [replace(checkedSpan(document, block.span)!, "", "remove managed block")],
         },
         outcome: "removed",
         block,
@@ -116,10 +110,10 @@ export function planBlock(
     }
     return {
       plan: {
-        source: document.text,
+        revision: document.id,
         edits: [
           replace(
-            { ...block.span, expected: document.text.slice(block.span.start, block.span.end) },
+            checkedSpan(document, block.span)!,
             renderManagedBlock(
               request.block.dialect,
               request.block.content,
@@ -136,7 +130,11 @@ export function planBlock(
   }
 
   if (request.whenMissing.kind === "skip") {
-    return { plan: { source: document.text, edits: [] }, outcome: "skipped", block: undefined };
+    return {
+      plan: { revision: document.id, edits: [] },
+      outcome: "skipped",
+      block: undefined,
+    };
   }
   if (request.whenMissing.kind === "error") {
     return { code: "managed-block-absent" };
@@ -148,10 +146,10 @@ export function planBlock(
     }
     return {
       plan: {
-        source: document.text,
+        revision: document.id,
         edits: [
           replace(
-            { start: at, end: at, expected: "" },
+            checkedSpan(document, { start: at, end: at })!,
             insertionText(document, at, request.block.content, request.block.dialect),
             "insert managed block",
           ),
@@ -171,7 +169,7 @@ export function planBlock(
   }
   return {
     plan: {
-      source: document.text,
+      revision: document.id,
       edits: [
         replace(
           span,
@@ -198,7 +196,7 @@ export function reconcileBlock(
   if (!("plan" in planned)) {
     return planned;
   }
-  const change = apply(planned.plan);
+  const change = apply(document, planned.plan);
   if (isApplyFailure(change)) {
     return change;
   }

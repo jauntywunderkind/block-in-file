@@ -1,4 +1,5 @@
 import { isSourceSpan, type SourceSpan } from "../source/spans.ts";
+import { createSourceRevision, type SourceRevision } from "../source/revision.ts";
 import type { ApplyFailure, Change, EditPlan, PlannedEdit } from "./plan.ts";
 
 function overlaps(left: SourceSpan, right: SourceSpan): boolean {
@@ -21,16 +22,22 @@ export function isApplyFailure(result: Change | ApplyFailure): result is ApplyFa
   return "code" in result;
 }
 
-export function apply(plan: EditPlan): Change | ApplyFailure {
+export function apply(revision: SourceRevision, plan: EditPlan): Change | ApplyFailure {
+  if (revision.id !== plan.revision) {
+    return { code: "revision-mismatch", expected: revision.id, actual: plan.revision };
+  }
   const sorted = [...plan.edits].sort(
     (left, right) => left.range.start - right.range.start || left.range.end - right.range.end,
   );
 
   for (const edit of sorted) {
-    if (!isSourceSpan(edit.range, plan.source.length)) {
+    if (edit.range.revision !== revision.id) {
+      return { code: "revision-mismatch", expected: revision.id, actual: edit.range.revision };
+    }
+    if (!isSourceSpan(edit.range, revision)) {
       return { code: "span-out-of-bounds", range: edit.range };
     }
-    const actual = plan.source.slice(edit.range.start, edit.range.end);
+    const actual = revision.text.slice(edit.range.start, edit.range.end);
     if (actual !== edit.range.expected) {
       return { code: "stale-span", range: edit.range, expected: edit.range.expected, actual };
     }
@@ -46,10 +53,10 @@ export function apply(plan: EditPlan): Change | ApplyFailure {
 
   const changedEdits = plan.edits.filter((edit) => edit.range.expected !== edit.replacement);
   if (changedEdits.length === 0) {
-    return { text: plan.source, changed: false, edits: [] };
+    return { revision, changed: false, edits: [] };
   }
 
-  let text = plan.source;
+  let text = revision.text;
   for (const edit of [...changedEdits].sort(
     (left, right) => right.range.start - left.range.start || right.range.end - left.range.end,
   )) {
@@ -57,9 +64,13 @@ export function apply(plan: EditPlan): Change | ApplyFailure {
   }
 
   return {
-    text,
+    revision: createSourceRevision(text),
     changed: true,
-    edits: changedEdits.map(({ range }) => ({ start: range.start, end: range.end })),
+    edits: changedEdits.map(({ range }) => ({
+      revision: revision.id,
+      start: range.start,
+      end: range.end,
+    })),
   };
 }
 

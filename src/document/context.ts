@@ -1,5 +1,5 @@
 import type { PhysicalLine } from "../source/lines.ts";
-import type { SourceDocument } from "./types.ts";
+import type { SourceRevision } from "../source/revision.ts";
 
 export type ContextTracker<State> = Readonly<{
   initial(): State;
@@ -13,7 +13,7 @@ export type ContextualLine<State> = Readonly<{
 }>;
 
 export function walk<State>(
-  document: SourceDocument,
+  document: SourceRevision,
   tracker: ContextTracker<State>,
 ): readonly ContextualLine<State>[] {
   let state = tracker.initial();

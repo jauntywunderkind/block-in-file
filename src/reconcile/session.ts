@@ -1,4 +1,4 @@
-import { inspect } from "../document/inspect.ts";
+import { inspect, inspectRevision } from "../document/inspect.ts";
 import type { Document, InspectionAssembly } from "../document/types.ts";
 import type { ApplyFailure, Change, EditPlan } from "./plan.ts";
 import { apply, isApplyFailure } from "./apply.ts";
@@ -38,20 +38,14 @@ export function beginReconciliation<Fact = never>(
   const steps: ReconciliationStep[] = [];
 
   function applyPlan<Report>(plan: EditPlan, report: Report): Change | ApplyFailure {
-    if (plan.source !== document.text) {
-      return {
-        code: "stale-span",
-        range: { start: 0, end: plan.source.length },
-        expected: plan.source,
-        actual: document.text,
-      };
-    }
-    const change = apply(plan);
+    const change = apply(document, plan);
     if (isApplyFailure(change)) {
       return change;
     }
     steps.push({ plan, change, report });
-    document = inspect(change.text, assembly);
+    if (change.changed) {
+      document = inspectRevision(change.revision, assembly);
+    }
     return change;
   }
 
@@ -79,7 +73,7 @@ export function beginReconciliation<Fact = never>(
     },
     preview() {
       return {
-        text: document.text,
+        revision: document,
         changed: steps.some((step) => step.change.changed),
         edits: steps.flatMap((step) => step.change.edits),
         steps,

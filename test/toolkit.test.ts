@@ -3,7 +3,6 @@ import {
   apply,
   beginReconciliation,
   checkedSpan,
-  indexPhysicalLines,
   inspect,
   one,
   planInsert,
@@ -22,49 +21,93 @@ import {
 describe("lossless source toolkit", () => {
   it("indexes every physical terminator without reconstructing source", () => {
     const text = "one\r\ntwo\rthree\nfour";
-    expect(indexPhysicalLines(text)).toEqual([
-      { number: 1, text: "one", span: { start: 0, end: 5 }, terminator: "\r\n" },
-      { number: 2, text: "two", span: { start: 5, end: 9 }, terminator: "\r" },
-      { number: 3, text: "three", span: { start: 9, end: 15 }, terminator: "\n" },
-      { number: 4, text: "four", span: { start: 15, end: 19 }, terminator: "" },
+    const revision = inspect(text);
+    expect(Object.isFrozen(revision)).toBe(true);
+    expect(Object.isFrozen(revision.lines)).toBe(true);
+    expect(Object.isFrozen(revision.lines[0]!.span)).toBe(true);
+    expect(revision.lines).toEqual([
+      {
+        number: 1,
+        text: "one",
+        span: { revision: revision.id, start: 0, end: 5 },
+        terminator: "\r\n",
+      },
+      {
+        number: 2,
+        text: "two",
+        span: { revision: revision.id, start: 5, end: 9 },
+        terminator: "\r",
+      },
+      {
+        number: 3,
+        text: "three",
+        span: { revision: revision.id, start: 9, end: 15 },
+        terminator: "\n",
+      },
+      {
+        number: 4,
+        text: "four",
+        span: { revision: revision.id, start: 15, end: 19 },
+        terminator: "",
+      },
     ]);
   });
 
   it("preserves every untouched UTF-16 code unit", () => {
     const text = "before\r\n\u{1F984} target\rafter";
-    const range = checkedSpan(text, { start: 11, end: 17 });
+    const revision = inspect(text);
+    const range = checkedSpan(revision, { start: 11, end: 17 });
     expect(range).toBeDefined();
-    const result = apply({
-      source: text,
+    const result = apply(revision, {
+      revision: revision.id,
       edits: [replace(range!, "changed", "replace selected field")],
     });
-    expect(result).toEqual({
-      text: "before\r\n\u{1F984} changed\rafter",
+    expect(result).toMatchObject({
+      revision: { text: "before\r\n\u{1F984} changed\rafter" },
       changed: true,
-      edits: [{ start: 11, end: 17 }],
+      edits: [{ revision: revision.id, start: 11, end: 17 }],
     });
   });
 
   it("rejects stale, invalid, and overlapping edits without changing source", () => {
-    const stale = apply({
-      source: "source",
-      edits: [{ range: { start: 0, end: 2, expected: "other" }, replacement: "x", reason: "test" }],
+    const revision = inspect("source");
+    const stale = apply(revision, {
+      revision: revision.id,
+      edits: [
+        {
+          range: { revision: revision.id, start: 0, end: 2, expected: "other" },
+          replacement: "x",
+          reason: "test",
+        },
+      ],
     });
     expect(stale).toMatchObject({ code: "stale-span", actual: "so" });
 
-    const invalid = apply({
-      source: "source",
+    const invalid = apply(revision, {
+      revision: revision.id,
       edits: [
-        { range: { start: 0, end: 9, expected: "source" }, replacement: "x", reason: "test" },
+        {
+          range: { revision: revision.id, start: 0, end: 9, expected: "source" },
+          replacement: "x",
+          reason: "test",
+        },
       ],
     });
     expect(invalid).toMatchObject({ code: "span-out-of-bounds" });
 
-    const overlap = apply({
-      source: "source",
+    const overlap = apply(revision, {
+      revision: revision.id,
       edits: [
-        { range: { start: 0, end: 3, expected: "sou" }, replacement: "x", reason: "test" },
-        { range: { start: 2, end: 4, expected: "ur" }, replacement: "x", reason: "test" },
+        {
+          range: { revision: revision.id, start: 0, end: 3, expected: "sou" },
+          replacement: "x",
+          reason: "test",
+        },
+        {
+          range: { revision: revision.id, start: 2, end: 4, expected: "ur" },
+          replacement: "x",
+          reason: "test",
+        },
       ],
     });
     expect(overlap).toMatchObject({ code: "overlapping-edits" });
@@ -72,33 +115,63 @@ describe("lossless source toolkit", () => {
 
   it("makes a no-op return the retained source", () => {
     const source = "unchanged\r\n";
-    const range = checkedSpan(source, { start: 0, end: 9 });
-    expect(apply({ source, edits: [replace(range!, "unchanged", "no-op")] })).toEqual({
-      text: source,
+    const revision = inspect(source);
+    const range = checkedSpan(revision, { start: 0, end: 9 });
+    expect(
+      apply(revision, { revision: revision.id, edits: [replace(range!, "unchanged", "no-op")] }),
+    ).toEqual({
+      revision,
       changed: false,
       edits: [],
     });
   });
 
+  it("rejects plans and checked spans from an equal but separately inspected revision", () => {
+    const first = inspect("same source");
+    const second = inspect("same source");
+    const range = checkedSpan(first, { start: 0, end: 4 })!;
+    const plan = planReplace(first, range, "other", "test revision affinity");
+
+    expect(first.id).not.toBe(second.id);
+    expect(apply(second, plan)).toEqual({
+      code: "revision-mismatch",
+      expected: second.id,
+      actual: first.id,
+    });
+  });
+
   it("re-inspects after each session revision", () => {
     const session = beginReconciliation("alpha\nbeta");
-    const first = checkedSpan(session.document.text, { start: 0, end: 5 });
+    const first = checkedSpan(session.document, { start: 0, end: 5 });
     expect(
       session.apply({
-        source: session.document.text,
+        revision: session.document.id,
         edits: [replace(first!, "first", "first step")],
       }),
     ).toMatchObject({ changed: true });
 
-    const second = checkedSpan(session.document.text, { start: 6, end: 10 });
+    const second = checkedSpan(session.document, { start: 6, end: 10 });
     expect(
       session.apply({
-        source: session.document.text,
+        revision: session.document.id,
         edits: [replace(second!, "second", "second step")],
       }),
     ).toMatchObject({ changed: true });
-    expect(session.preview().text).toBe("first\nsecond");
+    expect(session.preview().revision.text).toBe("first\nsecond");
     expect(session.steps).toHaveLength(2);
+  });
+
+  it("rejects a session plan after its revision has been applied", () => {
+    const session = beginReconciliation("alpha");
+    const plan = planReplace(
+      session.document,
+      checkedSpan(session.document, { start: 0, end: 5 })!,
+      "first",
+      "first step",
+    );
+
+    expect(session.apply(plan)).toMatchObject({ changed: true });
+    expect(session.apply(plan)).toMatchObject({ code: "revision-mismatch" });
   });
 
   it("composes managed and raw planners against fresh immutable revisions", () => {
@@ -112,7 +185,7 @@ describe("lossless source toolkit", () => {
         whenPresent: { kind: "update" },
         whenMissing: {
           kind: "take-over",
-          span: checkedSpan(document.text, { start: 10, end: 29 })!,
+          span: checkedSpan(document, { start: 10, end: 29 })!,
           mode: "replace",
         },
       }),
@@ -122,7 +195,7 @@ describe("lossless source toolkit", () => {
     const raw = session.reconcile((document) => ({
       plan: planReplace(
         document,
-        checkedSpan(document.text, { start: 0, end: 9 })!,
+        checkedSpan(document, { start: 0, end: 9 })!,
         "[ServiceX]",
         "rename section",
       ),
@@ -130,7 +203,7 @@ describe("lossless source toolkit", () => {
     }));
     expect(raw).toMatchObject({ report: { kind: "renamed-section" } });
     expect(session.preview()).toMatchObject({
-      text: "[ServiceX]\n# app start\nEnvironment=MODE=prod\n# app end\n",
+      revision: { text: "[ServiceX]\n# app start\nEnvironment=MODE=prod\n# app end\n" },
       steps: [{ report: { outcome: "replaced" } }, { report: { kind: "renamed-section" } }],
     });
   });
@@ -163,18 +236,19 @@ describe("lossless source toolkit", () => {
       "Environment=MODE=prod\r\n",
       "add setting",
     );
-    expect("code" in plan ? plan : apply(plan)).toMatchObject({
-      text: "[Service]\r\nExecStart=/bin/old\r\nEnvironment=MODE=prod\r\n",
+    expect("code" in plan ? plan : apply(document, plan)).toMatchObject({
+      revision: { text: "[Service]\r\nExecStart=/bin/old\r\nEnvironment=MODE=prod\r\n" },
     });
   });
 
   it("offers systemd adapters one checked replacement boundary", () => {
+    const document = inspect("ExecStart=/bin/old\n");
     expect(
-      replaceChecked("ExecStart=/bin/old\n", {
-        span: { start: 0, end: 18, expected: "ExecStart=/bin/old" },
+      replaceChecked(document, {
+        span: checkedSpan(document, { start: 0, end: 18 })!,
         replacement: "ExecStart=/bin/new",
       }),
-    ).toMatchObject({ text: "ExecStart=/bin/new\n", changed: true });
+    ).toMatchObject({ revision: { text: "ExecStart=/bin/new\n" }, changed: true });
   });
 
   it("keeps managed ownership separate from raw replacements", () => {
@@ -187,13 +261,13 @@ describe("lossless source toolkit", () => {
       whenPresent: { kind: "update" as const },
       whenMissing: {
         kind: "take-over" as const,
-        span: checkedSpan(document.text, { start: 11, end: 31 })!,
+        span: checkedSpan(document, { start: 11, end: 31 })!,
         mode: "replace" as const,
       },
     };
     expect(reconcileManagedBlock(document, request)).toMatchObject({
       outcome: "replaced",
-      text: "[Service]\r\n# app start\r\nEnvironment=MODE=prod\r\n# app end\r\n",
+      revision: { text: "[Service]\r\n# app start\r\nEnvironment=MODE=prod\r\n# app end\r\n" },
     });
     expect(
       inspectManagedBlocks(inspect("# app start\n# app end\n"), request.block.dialect).blocks,
@@ -208,13 +282,13 @@ describe("lossless source toolkit", () => {
         whenPresent: { kind: "update" },
         whenMissing: {
           kind: "take-over",
-          span: checkedSpan(document.text, { start: 0, end: 20 })!,
+          span: checkedSpan(document, { start: 0, end: 20 })!,
           mode: "adopt",
         },
       }),
     ).toMatchObject({
       outcome: "adopted",
-      text: "# app start\r\nExecStart=/bin/old\r\n# app end\r\n",
+      revision: { text: "# app start\r\nExecStart=/bin/old\r\n# app end\r\n" },
     });
   });
 });

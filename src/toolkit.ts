@@ -1,6 +1,6 @@
 export { walk } from "./document/context.ts";
 export type { ContextTracker, ContextualLine } from "./document/context.ts";
-export { inspect } from "./document/inspect.ts";
+export { inspect, inspectRevision } from "./document/inspect.ts";
 export { one } from "./document/query.ts";
 export type { QueryResult } from "./document/query.ts";
 export type {
@@ -9,7 +9,6 @@ export type {
   InspectionResult,
   Inspector,
   InspectDiagnostic,
-  SourceDocument,
 } from "./document/types.ts";
 export { apply, isApplyFailure, replace } from "./reconcile/apply.ts";
 export type { ApplyFailure, Change, EditPlan, PlannedEdit } from "./reconcile/plan.ts";
@@ -24,7 +23,9 @@ export type {
   ReconciliationSession,
   ReconciliationStep,
 } from "./reconcile/session.ts";
-export { indexPhysicalLines, inheritedTerminator } from "./source/lines.ts";
+export { inheritedTerminator } from "./source/lines.ts";
 export type { LineTerminator, PhysicalLine } from "./source/lines.ts";
-export { checkedSpan, isSourceSpan } from "./source/spans.ts";
-export type { CheckedSpan, SourceSpan } from "./source/spans.ts";
+export { createSourceRevision } from "./source/revision.ts";
+export type { RevisionId, SourceRevision } from "./source/revision.ts";
+export { checkedSpan, isOffsetSpan, isSourceSpan, sourceSpan } from "./source/spans.ts";
+export type { CheckedSpan, OffsetSpan, SourceSpan } from "./source/spans.ts";

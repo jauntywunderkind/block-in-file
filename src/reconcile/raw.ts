@@ -11,9 +11,12 @@ export type CheckedReplacement = Readonly<{
 }>;
 
 /** Replace a caller-selected UTF-16 span without searching or normalizing source. */
-export function replaceChecked(text: string, request: CheckedReplacement): Change | ApplyFailure {
-  return apply({
-    source: text,
+export function replaceChecked(
+  revision: Document<unknown>,
+  request: CheckedReplacement,
+): Change | ApplyFailure {
+  return apply(revision, {
+    revision: revision.id,
     edits: [replace(request.span, request.replacement, request.reason ?? "checked replacement")],
   });
 }
@@ -24,7 +27,7 @@ export function planReplace(
   replacement: string,
   reason: string,
 ): EditPlan {
-  return { source: document.text, edits: [replace(range, replacement, reason)] };
+  return { revision: document.id, edits: [replace(range, replacement, reason)] };
 }
 
 export function planInsert(
@@ -33,9 +36,9 @@ export function planInsert(
   replacement: string,
   reason: string,
 ): EditPlan | Readonly<{ code: "span-out-of-bounds"; at: number }> {
-  const range = checkedSpan(document.text, { start: at, end: at });
+  const range = checkedSpan(document, { start: at, end: at });
   if (!range) {
     return { code: "span-out-of-bounds", at };
   }
-  return { source: document.text, edits: [replace(range, replacement, reason)] };
+  return { revision: document.id, edits: [replace(range, replacement, reason)] };
 }
