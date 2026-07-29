@@ -11,10 +11,27 @@
   "license": "ISC",
   "author": "",
   "bin": {
-    "block-in-file": "./block-in-file.ts"
+    "block-in-file": "./dist/block-in-file.mjs"
   },
+  "files": [
+    "dist"
+  ],
   "type": "module",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./toolkit": {
+      "types": "./dist/toolkit.d.mts",
+      "import": "./dist/toolkit.mjs"
+    }
+  },
   "scripts": {
+    "build:bundle": "tsdown",
+    "build": "concurrently \"pnpm:build:*\"",
+    "prepack": "pnpm build",
     "check:ts": "tsgo --noEmit",
     "check:lint": "oxlint",
     "check:fmt": "oxfmt --check",
@@ -38,7 +55,9 @@
     "concurrently": "^9.2.1",
     "oxfmt": "^0.27.0",
     "oxlint": "^1.42.0",
+    "tsdown": "^0.22.14",
     "tsx": "^4.21.0",
+    "typescript": "^7.0.2",
     "vitest": "^4.0.18"
   },
   "packageManager": "pnpm@10.28.2"
