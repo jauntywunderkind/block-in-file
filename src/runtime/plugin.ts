@@ -43,8 +43,11 @@ export type ReconciliationPass = Readonly<{
   run(context: PassContext): void;
 }>;
 
+/** Stable identity and display metadata for one reconciliation plugin. */
+export type PluginManifest = PluginIdentity & Readonly<{ title: string }>;
+
 /** A pure package of reconciliation passes; loading and configuration belong to the host. */
 export type ReconciliationPlugin = Readonly<{
-  manifest: PluginIdentity & Readonly<{ title: string }>;
+  manifest: PluginManifest;
   passes: readonly ReconciliationPass[];
 }>;

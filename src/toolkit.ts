@@ -70,9 +70,12 @@ export type {
   PassDescriptor,
   PassEmitter,
   PassReference,
+  PluginManifest,
   ReconciliationPass,
   ReconciliationPlugin,
 } from "./runtime/plugin.ts";
+export { adaptLinePass } from "./runtime/line-pass.ts";
+export type { SnapshotLinePass } from "./runtime/line-pass.ts";
 export { createScheduler, isSchedulerFailure } from "./runtime/scheduler.ts";
 export type {
   DuplicatePassFailure,
@@ -83,3 +86,5 @@ export type {
   SchedulerFailure,
   UnknownPassReferenceFailure,
 } from "./runtime/scheduler.ts";
+export { markdownChangelogPlugin } from "./plugins/markdown/changelog.ts";
+export type { MarkdownChangelogPluginOptions } from "./plugins/markdown/changelog.ts";
