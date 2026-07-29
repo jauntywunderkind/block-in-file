@@ -633,6 +633,39 @@ The CLI demonstrates the default assembly. `systemd-units` proves the seam.
 The library's enduring product is the hard source-preservation work that neither
 consumer should need to rebuild.
 
+# Addendum: Systemd Adapter Boundary
+
+The first library slice is sufficient for a `systemd-units` adapter to perform
+one checked raw replacement: `replaceChecked(text, { span, replacement })`
+accepts a UTF-16 code-unit `CheckedSpan`, verifies its retained text, and does
+not search, normalize, or infer a target. The adapter must continue to own
+systemd selection, UTF-8-byte-to-UTF-16 conversion, final reparse, and
+diagnostic-delta validation.
+
+Investigation of `systemd-units` found that its public Node API currently
+exposes logical directives (`id`, `section`, `key`, `value`, and `continued`)
+but not a whole-directive source range. Its Rust document ranges are UTF-8 byte
+offsets, while the JavaScript toolkit correctly uses UTF-16 code-unit offsets.
+The adapter must therefore wait for `systemd-units` to expose a selected,
+single-line whole-directive byte range. It must reject continued directives
+until that range model includes all physical fragments and intervening trivia.
+
+The implementation sequence is now:
+
+1. Expose a document-local whole-directive UTF-8 byte range from
+   `systemd-units`, preserving its explicit duplicate-directive selection.
+2. In `systemd-units`, select exactly one `{ section, key, occurrence }`,
+   reject ambiguity and `continued: true`, then convert that range to a
+   `CheckedSpan` against the rendered JavaScript string.
+3. Call `block-in-file/toolkit`'s `replaceChecked()` for raw replacement, or
+   use the root managed facade for line-aligned adoption/take-over.
+4. Reparse the returned source and reject a newly introduced diagnostic or a
+   managed block outside the selected section.
+
+This is intentionally not a `systemd-units` parser or adapter in this package.
+It keeps the source-reconciliation API format-independent and makes the missing
+range capability a visible prerequisite rather than an unsafe approximation.
+
 ## References
 
 - [Canonical reconciliation synthesis](/.design/block-in-file/syn-ambition.gpt-5.6-terra.md)
