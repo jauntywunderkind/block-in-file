@@ -64,3 +64,22 @@ export type {
 } from "./runtime/plans.ts";
 export { beginStage } from "./runtime/stage.ts";
 export type { StageCollector, StageReport } from "./runtime/stage.ts";
+export type {
+  FactQuery,
+  PassContext,
+  PassDescriptor,
+  PassEmitter,
+  PassReference,
+  ReconciliationPass,
+  ReconciliationPlugin,
+} from "./runtime/plugin.ts";
+export { createScheduler, isSchedulerFailure } from "./runtime/scheduler.ts";
+export type {
+  DuplicatePassFailure,
+  DuplicatePluginFailure,
+  PassCycleFailure,
+  ReconciliationScheduler,
+  ScheduledStageReport,
+  SchedulerFailure,
+  UnknownPassReferenceFailure,
+} from "./runtime/scheduler.ts";
