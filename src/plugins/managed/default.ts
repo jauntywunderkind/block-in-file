@@ -32,6 +32,12 @@ type IntegrityObservation = Readonly<{ valid: boolean; blockCount: number }>;
 
 type ObservedBlock = Readonly<{ fact: Fact; value: ManagedBlockObservation }>;
 
+/** Placement policy for lines newly added to an existing managed payload. */
+export type AdditivePolicy = Readonly<{
+  before?: "BOF" | RegExp;
+  after?: "EOB" | "EOF" | RegExp;
+}>;
+
 /** Configuration for the built-in managed-block reconciliation plugin. */
 export type ManagedPluginOptions = BlockRequest &
   Readonly<{
@@ -39,6 +45,8 @@ export type ManagedPluginOptions = BlockRequest &
     tags?: readonly Tag[];
     tagMode?: TagMode;
     sourceLine?: string;
+    sourceLinePrefix?: string;
+    additive?: AdditivePolicy;
   }>;
 
 function normalize(dialect: MarkerDialect, text: string): string {
@@ -116,6 +124,113 @@ function observedBlocks(context: PassContext): readonly ObservedBlock[] {
     .flatMap((fact) => (isManagedBlock(fact.value) ? [{ fact, value: fact.value }] : []));
 }
 
+function matches(pattern: RegExp, text: string): boolean {
+  pattern.lastIndex = 0;
+  return pattern.test(text);
+}
+
+function contentLines(context: PassContext, block: ObservedBlock): readonly PhysicalLine[] {
+  return context.revision.lines.filter(
+    (line) =>
+      line.span.start >= block.value.content.start && line.span.end <= block.value.content.end,
+  );
+}
+
+function isSourceLine(line: PhysicalLine, options: ManagedPluginOptions): boolean {
+  return (
+    (options.sourceLinePrefix !== undefined &&
+      line.text.trim().startsWith(options.sourceLinePrefix)) ||
+    (options.sourceLine !== undefined && line.text === options.sourceLine)
+  );
+}
+
+function missingLines(
+  context: PassContext,
+  options: ManagedPluginOptions,
+  block: ObservedBlock,
+): readonly string[] {
+  const existing = new Set(
+    contentLines(context, block)
+      .filter((line) => !isSourceLine(line, options))
+      .map((line) => line.text),
+  );
+  return [
+    ...new Set(options.block.content.split(/\r\n|\r|\n/).filter((line) => line.length > 0)),
+  ].filter((line) => !existing.has(line));
+}
+
+function additiveOffset(
+  context: PassContext,
+  options: ManagedPluginOptions,
+  block: ObservedBlock,
+): number {
+  const lines = contentLines(context, block).filter((line) => !isSourceLine(line, options));
+  const sourceLines = contentLines(context, block).filter((line) => isSourceLine(line, options));
+  const policy = options.additive!;
+  const before = policy.before;
+  const after = policy.after;
+  if (before === "BOF") {
+    return lines[0]?.span.start ?? sourceLines.at(-1)?.span.end ?? block.value.content.start;
+  }
+  if (before instanceof RegExp) {
+    return (
+      lines.find((line) => matches(before, line.text))?.span.start ??
+      lines[0]?.span.start ??
+      sourceLines.at(-1)?.span.end ??
+      block.value.content.start
+    );
+  }
+  if (after instanceof RegExp) {
+    return lines.find((line) => matches(after, line.text))?.span.end ?? block.value.content.end;
+  }
+  return block.value.content.end;
+}
+
+function emitAdditivePlan(
+  context: PassContext,
+  options: ManagedPluginOptions,
+  block: ObservedBlock,
+): void {
+  const lines = contentLines(context, block);
+  const attribution = lines.find((line) => isSourceLine(line, options));
+  const metadataEnd = attribution?.span.end ?? block.value.opener.span.end;
+  const terminator = block.value.opener.terminator;
+  const metadata = `${outputOpener(options, parseTags(block.value.opener.text))}${terminator}${
+    options.sourceLine ? `${options.sourceLine}${terminator}` : ""
+  }`;
+  let changed = false;
+  if (context.revision.text.slice(block.value.opener.span.start, metadataEnd) !== metadata) {
+    context.emit.edit({
+      range: checkedSpan(context.revision, {
+        start: block.value.opener.span.start,
+        end: metadataEnd,
+      })!,
+      replacement: metadata,
+      reason: "update managed block metadata",
+      evidence: [block.fact.id],
+      rule: "additive-metadata",
+    });
+    changed = true;
+  }
+
+  const missing = missingLines(context, options, block);
+  if (missing.length > 0) {
+    const terminator = inheritedTerminator(context.revision.lines);
+    context.emit.edit({
+      range: checkedSpan(context.revision, {
+        start: additiveOffset(context, options, block),
+        end: additiveOffset(context, options, block),
+      })!,
+      replacement: `${missing.join(terminator)}${terminator}`,
+      reason: "add missing managed block lines",
+      evidence: [block.fact.id],
+      rule: "additive",
+    });
+    changed = true;
+  }
+  emitOutcome(context, changed ? "updated" : "kept");
+}
+
 function emitPresentPlan(
   context: PassContext,
   options: ManagedPluginOptions,
@@ -145,6 +260,10 @@ function emitPresentPlan(
       rule: "remove",
     });
     emitOutcome(context, "removed");
+    return;
+  }
+  if (options.additive) {
+    emitAdditivePlan(context, options, block);
     return;
   }
 
@@ -244,6 +363,9 @@ function emitMissingPlan(context: PassContext, options: ManagedPluginOptions): v
 
 /** Create a built-in managed-block plugin over retained source revisions. */
 export function managedPlugin(options: ManagedPluginOptions): ReconciliationPlugin {
+  if (options.additive?.before && options.additive.after) {
+    throw new Error("Managed additive policy cannot specify both before and after placement");
+  }
   const manifest =
     options.manifest ??
     ({ id: "block-in-file/managed", version: "2", title: "Managed blocks" } as const);

@@ -122,6 +122,50 @@ describe("managed reconciliation plugin", () => {
     });
   });
 
+  it("adds only missing payload lines while refreshing metadata", () => {
+    const { revision, report } = run(
+      "# app start [timestamp:old]\r\n# source: old\r\nline2\r\n# app end\r\n",
+      {
+        block: { ...block, content: "line1\nline2\nline3" },
+        sourceLine: "# source: new",
+        sourceLinePrefix: "# source:",
+        additive: { after: /^line2$/ },
+        whenPresent: { kind: "update" },
+        whenMissing: { kind: "error" },
+      },
+    );
+
+    expect(applyPlans(revision, [ownershipPlan(report).id], report.plans)).toMatchObject({
+      revision: {
+        text: "# app start [timestamp:old]\r\n# source: new\r\nline2\r\nline1\r\nline3\r\n# app end\r\n",
+      },
+    });
+  });
+
+  it("adds missing lines before the existing payload when configured", () => {
+    const { revision, report } = run("# app start\nline2\n# app end\n", {
+      block: { ...block, content: "line1\nline2\nline3" },
+      additive: { before: "BOF" },
+      whenPresent: { kind: "update" },
+      whenMissing: { kind: "error" },
+    });
+
+    expect(applyPlans(revision, [ownershipPlan(report).id], report.plans)).toMatchObject({
+      revision: { text: "# app start\nline1\nline3\nline2\n# app end\n" },
+    });
+  });
+
+  it("rejects ambiguous additive placement policies", () => {
+    expect(() =>
+      managedPlugin({
+        block,
+        additive: { before: "BOF", after: "EOB" },
+        whenPresent: { kind: "update" },
+        whenMissing: { kind: "error" },
+      }),
+    ).toThrow("Managed additive policy cannot specify both before and after placement");
+  });
+
   it("reports malformed ownership and emits no mutation intent", () => {
     const { report } = run("# app start\n# app end\n# app start\n# app end\n", {
       block,
