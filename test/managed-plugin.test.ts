@@ -70,6 +70,58 @@ describe("managed reconciliation plugin", () => {
     });
   });
 
+  it("recognizes tagged markers and merges requested tags only onto the opener", () => {
+    const { revision, report } = run(
+      "# app start [anchor-bof:100]\r\nold\r\n# app end [legacy]\r\n",
+      {
+        block,
+        tags: [{ name: "timestamp", value: "next" }],
+        sourceLine: "# source: generated",
+        whenPresent: { kind: "update" },
+        whenMissing: { kind: "error" },
+      },
+    );
+
+    expect(applyPlans(revision, [ownershipPlan(report).id], report.plans)).toMatchObject({
+      revision: {
+        text: "# app start [anchor-bof:100] [timestamp:next]\r\n# source: generated\r\nenabled=true\r\n# app end\r\n",
+      },
+    });
+  });
+
+  it("replaces tags and source attribution as managed metadata", () => {
+    const source =
+      "# app start [anchor-bof:100] [old:value]\n# source: old\nenabled=true\n# app end\n";
+    const replacement = run(source, {
+      block,
+      tags: [{ name: "timestamp", value: "new" }],
+      tagMode: "replace",
+      sourceLine: "# source: new",
+      whenPresent: { kind: "update" },
+      whenMissing: { kind: "error" },
+    });
+    expect(
+      applyPlans(
+        replacement.revision,
+        [ownershipPlan(replacement.report).id],
+        replacement.report.plans,
+      ),
+    ).toMatchObject({
+      revision: { text: "# app start [timestamp:new]\n# source: new\nenabled=true\n# app end\n" },
+    });
+
+    const disabled = run(source, {
+      block,
+      whenPresent: { kind: "update" },
+      whenMissing: { kind: "error" },
+    });
+    expect(
+      applyPlans(disabled.revision, [ownershipPlan(disabled.report).id], disabled.report.plans),
+    ).toMatchObject({
+      revision: { text: "# app start [anchor-bof:100] [old:value]\nenabled=true\n# app end\n" },
+    });
+  });
+
   it("reports malformed ownership and emits no mutation intent", () => {
     const { report } = run("# app start\n# app end\n# app start\n# app end\n", {
       block,

@@ -1,6 +1,9 @@
 import { resolvePlacement } from "../../reconcile/placement.ts";
 import { inheritedTerminator, type PhysicalLine } from "../../source/lines.ts";
 import { checkedSpan, sourceSpan, type CheckedSpan, type SourceSpan } from "../../source/spans.ts";
+import { addTags, parseTags, stripTagsForMatching, type Tag } from "../../tags/tags.ts";
+import { applyTagMode } from "../../tags/tag-merger.ts";
+import type { TagMode } from "../../tags/tag-mode.ts";
 import type { BlockRequest, ManagedOutcome } from "../../managed/default.ts";
 import type { MarkerDialect } from "../../managed/markers.ts";
 import { adaptLinePass, type SnapshotLinePass } from "../../runtime/line-pass.ts";
@@ -33,6 +36,9 @@ type ObservedBlock = Readonly<{ fact: Fact; value: ManagedBlockObservation }>;
 export type ManagedPluginOptions = BlockRequest &
   Readonly<{
     manifest?: PluginManifest;
+    tags?: readonly Tag[];
+    tagMode?: TagMode;
+    sourceLine?: string;
   }>;
 
 function normalize(dialect: MarkerDialect, text: string): string {
@@ -44,25 +50,38 @@ function render(
   content: string,
   terminator: string,
   trailing = "",
+  opener = dialect.opener,
+  sourceLine?: string,
 ): string {
   const normalized = content.replace(/\r\n|\r|\n/g, terminator);
-  const contentTerminator =
-    normalized.length > 0 && !normalized.endsWith(terminator) ? terminator : "";
-  return `${dialect.opener}${terminator}${normalized}${contentTerminator}${dialect.closer}${trailing}`;
+  const body = sourceLine
+    ? `${sourceLine}${normalized.length > 0 ? terminator : ""}${normalized}`
+    : normalized;
+  const contentTerminator = body.length > 0 && !body.endsWith(terminator) ? terminator : "";
+  return `${opener}${terminator}${body}${contentTerminator}${dialect.closer}${trailing}`;
 }
 
-function insertionText(
-  context: PassContext,
-  at: number,
-  content: string,
-  dialect: MarkerDialect,
-): string {
+function outputOpener(options: ManagedPluginOptions, existing: readonly Tag[] = []): string {
+  return addTags(
+    options.block.dialect.opener,
+    applyTagMode([...existing], [...(options.tags ?? [])], options.tagMode ?? "merge"),
+  );
+}
+
+function insertionText(context: PassContext, at: number, options: ManagedPluginOptions): string {
   const terminator = inheritedTerminator(context.revision.lines);
   const before = context.revision.text.slice(0, at);
   const after = context.revision.text.slice(at);
   const prefix = before.length > 0 && !/[\r\n]$/.test(before) ? terminator : "";
   const suffix = after.length > 0 ? terminator : "";
-  return `${prefix}${render(dialect, content, terminator)}${suffix}`;
+  return `${prefix}${render(
+    options.block.dialect,
+    options.block.content,
+    terminator,
+    "",
+    outputOpener(options),
+    options.sourceLine,
+  )}${suffix}`;
 }
 
 function isManagedBlock(value: unknown): value is ManagedBlockObservation {
@@ -134,6 +153,8 @@ function emitPresentPlan(
     content,
     inheritedTerminator(context.revision.lines),
     block.value.closer.terminator,
+    outputOpener(options, parseTags(block.value.opener.text)),
+    options.sourceLine,
   );
   if (
     context.revision.text.slice(block.value.envelope.start, block.value.envelope.end) ===
@@ -178,7 +199,7 @@ function emitMissingPlan(context: PassContext, options: ManagedPluginOptions): v
     }
     context.emit.edit({
       range: checkedSpan(context.revision, { start: placement, end: placement })!,
-      replacement: insertionText(context, placement, options.block.content, options.block.dialect),
+      replacement: insertionText(context, placement, options),
       reason: "insert managed block",
       rule: "insert",
     });
@@ -212,6 +233,8 @@ function emitMissingPlan(context: PassContext, options: ManagedPluginOptions): v
       mode === "adopt" ? span.expected : options.block.content,
       inheritedTerminator(context.revision.lines),
       trailing,
+      outputOpener(options),
+      options.sourceLine,
     ),
     reason: "take over managed block",
     rule: "take-over",
@@ -231,10 +254,10 @@ export function managedPlugin(options: ManagedPluginOptions): ReconciliationPlug
     },
     line(state, line, context) {
       const opener =
-        normalize(options.block.dialect, line.text) ===
+        normalize(options.block.dialect, stripTagsForMatching(line.text)) ===
         normalize(options.block.dialect, options.block.dialect.opener);
       const closer =
-        normalize(options.block.dialect, line.text) ===
+        normalize(options.block.dialect, stripTagsForMatching(line.text)) ===
         normalize(options.block.dialect, options.block.dialect.closer);
       if (opener) {
         if (state.opener) {
