@@ -89,4 +89,8 @@ export type {
 export { markdownChangelogPlugin } from "./plugins/markdown/changelog.ts";
 export type { MarkdownChangelogPluginOptions } from "./plugins/markdown/changelog.ts";
 export { managedPlugin } from "./plugins/managed/default.ts";
-export type { ManagedPluginOptions } from "./plugins/managed/default.ts";
+export type {
+  AdditivePolicy,
+  ManagedAnchor,
+  ManagedPluginOptions,
+} from "./plugins/managed/default.ts";

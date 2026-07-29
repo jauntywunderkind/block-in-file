@@ -6,6 +6,12 @@ import { applyTagMode } from "../../tags/tag-merger.ts";
 import type { TagMode } from "../../tags/tag-mode.ts";
 import type { BlockRequest, ManagedOutcome } from "../../managed/default.ts";
 import type { MarkerDialect } from "../../managed/markers.ts";
+import {
+  inspectManagedAnchors,
+  resolveManagedAnchorPlacement,
+  type ManagedAnchor,
+  type ManagedAnchorObservation,
+} from "./anchors.ts";
 import { adaptLinePass, type SnapshotLinePass } from "../../runtime/line-pass.ts";
 import type { Fact } from "../../runtime/facts.ts";
 import type {
@@ -32,6 +38,10 @@ type IntegrityObservation = Readonly<{ valid: boolean; blockCount: number }>;
 
 type ObservedBlock = Readonly<{ fact: Fact; value: ManagedBlockObservation }>;
 
+type ObservedAnchor = Readonly<{ fact: Fact; value: ManagedAnchorObservation }>;
+
+export type { ManagedAnchor } from "./anchors.ts";
+
 /** Placement policy for lines newly added to an existing managed payload. */
 export type AdditivePolicy = Readonly<{
   before?: "BOF" | RegExp;
@@ -47,6 +57,7 @@ export type ManagedPluginOptions = BlockRequest &
     sourceLine?: string;
     sourceLinePrefix?: string;
     additive?: AdditivePolicy;
+    anchor?: ManagedAnchor;
   }>;
 
 function normalize(dialect: MarkerDialect, text: string): string {
@@ -70,9 +81,15 @@ function render(
 }
 
 function outputOpener(options: ManagedPluginOptions, existing: readonly Tag[] = []): string {
+  const tags = options.anchor
+    ? [
+        ...(options.tags ?? []),
+        { name: `anchor-${options.anchor.type}`, value: String(options.anchor.priority) },
+      ]
+    : [...(options.tags ?? [])];
   return addTags(
     options.block.dialect.opener,
-    applyTagMode([...existing], [...(options.tags ?? [])], options.tagMode ?? "merge"),
+    applyTagMode([...existing], tags, options.tagMode ?? "merge"),
   );
 }
 
@@ -122,6 +139,25 @@ function observedBlocks(context: PassContext): readonly ObservedBlock[] {
   return context.facts
     .kind("managed.block")
     .flatMap((fact) => (isManagedBlock(fact.value) ? [{ fact, value: fact.value }] : []));
+}
+
+function isManagedAnchor(value: unknown): value is ManagedAnchorObservation {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "anchor" in value &&
+    "span" in value &&
+    typeof value.anchor === "object" &&
+    value.anchor !== null &&
+    "type" in value.anchor &&
+    "priority" in value.anchor
+  );
+}
+
+function observedAnchors(context: PassContext): readonly ObservedAnchor[] {
+  return context.facts
+    .kind("managed.anchor")
+    .flatMap((fact) => (isManagedAnchor(fact.value) ? [{ fact, value: fact.value }] : []));
 }
 
 function matches(pattern: RegExp, text: string): boolean {
@@ -306,7 +342,14 @@ function emitMissingPlan(context: PassContext, options: ManagedPluginOptions): v
     return;
   }
   if (missing.kind === "insert") {
-    const placement = resolvePlacement(context.revision, missing.placement);
+    const placement =
+      options.anchor && missing.placement.kind !== "line-match"
+        ? resolveManagedAnchorPlacement(
+            context.revision,
+            options.anchor,
+            observedAnchors(context).map((anchor) => anchor.value),
+          )
+        : resolvePlacement(context.revision, missing.placement);
     if (typeof placement !== "number") {
       context.emit.diagnostic({
         code: placement.code,
@@ -443,6 +486,14 @@ export function managedPlugin(options: ManagedPluginOptions): ReconciliationPlug
           rule: "structure",
         });
         invalid = true;
+      }
+      for (const anchor of inspectManagedAnchors(context.revision, options.block.dialect)) {
+        context.emit.fact({
+          kind: "managed.anchor",
+          subject: anchor.span,
+          value: anchor,
+          rule: "anchor-scan",
+        });
       }
       context.emit.fact({
         kind: "managed.integrity",

@@ -166,6 +166,68 @@ describe("managed reconciliation plugin", () => {
     ).toThrow("Managed additive policy cannot specify both before and after placement");
   });
 
+  it("orders BOF anchors by priority across managed block names", () => {
+    const { revision, report } = run(
+      "# high start [anchor-bof:100]\nhigh\n# high end\n# low start [anchor-bof:50]\nlow\n# low end\nbody\n",
+      {
+        block,
+        anchor: { type: "bof", priority: 75 },
+        whenPresent: { kind: "update" },
+        whenMissing: { kind: "insert", placement: { kind: "edge", edge: "EOF" } },
+      },
+    );
+
+    expect(applyPlans(revision, [ownershipPlan(report).id], report.plans)).toMatchObject({
+      revision: {
+        text: "# high start [anchor-bof:100]\nhigh\n# high end\n# app start [anchor-bof:75]\nenabled=true\n# app end\n# low start [anchor-bof:50]\nlow\n# low end\nbody\n",
+      },
+    });
+  });
+
+  it("orders EOF anchors by priority across managed block names", () => {
+    const { revision, report } = run(
+      "body\n# low start [anchor-eof:50]\nlow\n# low end\n# high start [anchor-eof:100]\nhigh\n# high end\n",
+      {
+        block,
+        anchor: { type: "eof", priority: 75 },
+        whenPresent: { kind: "update" },
+        whenMissing: { kind: "insert", placement: { kind: "edge", edge: "BOF" } },
+      },
+    );
+
+    expect(applyPlans(revision, [ownershipPlan(report).id], report.plans)).toMatchObject({
+      revision: {
+        text: "body\n# low start [anchor-eof:50]\nlow\n# low end\n# app start [anchor-eof:75]\nenabled=true\n# app end\n# high start [anchor-eof:100]\nhigh\n# high end\n",
+      },
+    });
+  });
+
+  it("prefers an explicit line placement over anchor ordering", () => {
+    const { revision, report } = run(
+      "# high start [anchor-bof:100]\nhigh\n# high end\nbody\n# low start [anchor-bof:50]\nlow\n# low end\n",
+      {
+        block,
+        anchor: { type: "bof", priority: 75 },
+        whenPresent: { kind: "update" },
+        whenMissing: {
+          kind: "insert",
+          placement: {
+            kind: "line-match",
+            pattern: /^body$/,
+            relation: "after",
+            cardinality: "unique-or-error",
+          },
+        },
+      },
+    );
+
+    expect(applyPlans(revision, [ownershipPlan(report).id], report.plans)).toMatchObject({
+      revision: {
+        text: "# high start [anchor-bof:100]\nhigh\n# high end\nbody\n# app start [anchor-bof:75]\nenabled=true\n# app end\n# low start [anchor-bof:50]\nlow\n# low end\n",
+      },
+    });
+  });
+
   it("reports malformed ownership and emits no mutation intent", () => {
     const { report } = run("# app start\n# app end\n# app start\n# app end\n", {
       block,
