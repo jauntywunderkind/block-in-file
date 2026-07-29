@@ -1,27 +1,13 @@
-import { isSourceSpan, type SourceSpan } from "../source/spans.ts";
+import { isSourceSpan, spansOverlap } from "../source/spans.ts";
 import { createSourceRevision, type SourceRevision } from "../source/revision.ts";
 import type { ApplyFailure, Change, EditPlan, PlannedEdit } from "./plan.ts";
 
-function overlaps(left: SourceSpan, right: SourceSpan): boolean {
-  const leftIsPoint = left.start === left.end;
-  const rightIsPoint = right.start === right.end;
-
-  if (leftIsPoint && rightIsPoint) {
-    return left.start === right.start;
-  }
-  if (leftIsPoint) {
-    return left.start >= right.start && left.start <= right.end;
-  }
-  if (rightIsPoint) {
-    return right.start >= left.start && right.start <= left.end;
-  }
-  return left.start < right.end && right.start < left.end;
-}
-
+/** Return whether a result is an application failure rather than a changed revision. */
 export function isApplyFailure(result: Change | ApplyFailure): result is ApplyFailure {
   return "code" in result;
 }
 
+/** Atomically apply one revision-bound edit plan and produce its next source revision. */
 export function apply(revision: SourceRevision, plan: EditPlan): Change | ApplyFailure {
   if (revision.id !== plan.revision) {
     return { code: "revision-mismatch", expected: revision.id, actual: plan.revision };
@@ -46,7 +32,7 @@ export function apply(revision: SourceRevision, plan: EditPlan): Change | ApplyF
   for (let index = 1; index < sorted.length; index++) {
     const previous = sorted[index - 1]!;
     const current = sorted[index]!;
-    if (overlaps(previous.range, current.range)) {
+    if (spansOverlap(previous.range, current.range)) {
       return { code: "overlapping-edits", ranges: [previous.range, current.range] };
     }
   }
@@ -74,6 +60,7 @@ export function apply(revision: SourceRevision, plan: EditPlan): Change | ApplyF
   };
 }
 
+/** Describe one checked replacement for a revision-bound edit plan. */
 export function replace(
   range: PlannedEdit["range"],
   replacement: string,

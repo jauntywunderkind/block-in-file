@@ -1,8 +1,10 @@
 import type { RevisionId } from "./revision.ts";
 import type { SourceSpan } from "./spans.ts";
 
+/** The exact terminator retained after one physical line, or empty at EOF. */
 export type LineTerminator = "\n" | "\r\n" | "\r" | "";
 
+/** An exact, revision-bound partition of a retained JavaScript string. */
 export type PhysicalLine = Readonly<{
   number: number;
   text: string;
@@ -10,7 +12,7 @@ export type PhysicalLine = Readonly<{
   terminator: LineTerminator;
 }>;
 
-/** Index lines without splitting or reassembling the retained source. */
+/** Index physical lines without splitting or reassembling retained source. */
 export function indexPhysicalLines(text: string, revision: RevisionId): readonly PhysicalLine[] {
   const lines: PhysicalLine[] = [];
   let start = 0;
@@ -48,6 +50,7 @@ export function indexPhysicalLines(text: string, revision: RevisionId): readonly
   return lines;
 }
 
+/** Choose the first existing terminator, defaulting to LF for generated content. */
 export function inheritedTerminator(lines: readonly PhysicalLine[]): Exclude<LineTerminator, ""> {
   for (const line of lines) {
     if (line.terminator !== "") {

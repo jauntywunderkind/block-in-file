@@ -2,6 +2,7 @@ import { createSourceRevision } from "../source/revision.ts";
 import type { SourceRevision } from "../source/revision.ts";
 import type { Document, InspectionAssembly, InspectDiagnostic } from "./types.ts";
 
+/** Create and inspect a fresh immutable source revision from text. */
 export function inspect<Fact = never>(
   text: string,
   assembly: InspectionAssembly<Fact> = {},
@@ -9,6 +10,7 @@ export function inspect<Fact = never>(
   return inspectRevision(createSourceRevision(text), assembly);
 }
 
+/** Enrich an existing source revision without creating a different coordinate universe. */
 export function inspectRevision<Fact = never>(
   source: SourceRevision,
   assembly: InspectionAssembly<Fact> = {},

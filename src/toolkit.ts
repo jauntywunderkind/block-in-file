@@ -27,5 +27,40 @@ export { inheritedTerminator } from "./source/lines.ts";
 export type { LineTerminator, PhysicalLine } from "./source/lines.ts";
 export { createSourceRevision } from "./source/revision.ts";
 export type { RevisionId, SourceRevision } from "./source/revision.ts";
-export { checkedSpan, isOffsetSpan, isSourceSpan, sourceSpan } from "./source/spans.ts";
+export {
+  checkedSpan,
+  isOffsetSpan,
+  isSourceSpan,
+  sourceSpan,
+  spansOverlap,
+} from "./source/spans.ts";
 export type { CheckedSpan, OffsetSpan, SourceSpan } from "./source/spans.ts";
+export type {
+  EditId,
+  FactId,
+  Origin,
+  PassIdentity,
+  PlanId,
+  PluginIdentity,
+} from "./runtime/origin.ts";
+export type {
+  DiagnosticInput,
+  Fact,
+  FactBatch,
+  FactInput,
+  StageDiagnostic,
+} from "./runtime/facts.ts";
+export { applyPlans } from "./runtime/plans.ts";
+export type {
+  ApplyPlansFailure,
+  CheckedPlanFailure,
+  EditInput,
+  EditIntent,
+  IntentConflict,
+  PlanApplication,
+  PlanDescriptor,
+  PlanReport,
+  PlanSet,
+} from "./runtime/plans.ts";
+export { beginStage } from "./runtime/stage.ts";
+export type { StageCollector, StageReport } from "./runtime/stage.ts";

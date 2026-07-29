@@ -4,6 +4,7 @@ import type { EditPlan } from "./plan.ts";
 import { apply, replace } from "./apply.ts";
 import type { ApplyFailure, Change } from "./plan.ts";
 
+/** A raw replacement selected by an externally supplied checked source span. */
 export type CheckedReplacement = Readonly<{
   span: CheckedSpan;
   replacement: string;
@@ -21,6 +22,7 @@ export function replaceChecked(
   });
 }
 
+/** Plan one raw replacement against the supplied immutable document revision. */
 export function planReplace(
   document: Document<unknown>,
   range: CheckedSpan,
@@ -30,6 +32,7 @@ export function planReplace(
   return { revision: document.id, edits: [replace(range, replacement, reason)] };
 }
 
+/** Plan a raw insertion at one validated UTF-16 offset in the supplied revision. */
 export function planInsert(
   document: Document<unknown>,
   at: number,

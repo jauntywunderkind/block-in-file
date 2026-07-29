@@ -5,6 +5,7 @@ declare const revisionBrand: unique symbol;
 /** Opaque identity for one retained source snapshot within this runtime. */
 export type RevisionId = string & { readonly [revisionBrand]: never };
 
+/** An immutable source string and physical-line index forming one coordinate universe. */
 export type SourceRevision = Readonly<{
   id: RevisionId;
   text: string;

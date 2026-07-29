@@ -3,23 +3,27 @@ import type { Document, InspectionAssembly } from "../document/types.ts";
 import type { ApplyFailure, Change, EditPlan } from "./plan.ts";
 import { apply, isApplyFailure } from "./apply.ts";
 
+/** One successful plan application and its planner-specific report. */
 export type ReconciliationStep<Report = unknown> = Readonly<{
   plan: EditPlan;
   change: Change;
   report: Report;
 }>;
 
+/** A pure planner that either returns a revision-bound plan or a domain failure. */
 export type ReconciliationPlanner<
   Fact,
   Planned extends Readonly<{ plan: EditPlan }>,
   Failure extends object,
 > = (document: Document<Fact>) => Planned | Failure;
 
+/** The successful result of running a planner through a reconciliation session. */
 export type ReconciliationResult<Report> = Readonly<{
   change: Change;
   report: Report;
 }>;
 
+/** A coordinator that applies plans, then explicitly inspects the next revision. */
 export type ReconciliationSession<Fact = never> = Readonly<{
   document: Document<Fact>;
   steps: readonly ReconciliationStep[];
@@ -30,6 +34,7 @@ export type ReconciliationSession<Fact = never> = Readonly<{
   preview(): Change & Readonly<{ steps: readonly ReconciliationStep[] }>;
 }>;
 
+/** Start a pure, sequential reconciliation coordinator from source text. */
 export function beginReconciliation<Fact = never>(
   text: string,
   assembly: InspectionAssembly<Fact> = {},
