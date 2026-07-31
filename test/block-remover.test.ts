@@ -42,6 +42,25 @@ describe("block-remover", () => {
       expect(stats.blocks.length).toBe(2);
     });
 
+    it("removes blocks whose names match any regex", () => {
+      const fileContent =
+        "# app-cache start\ncache\n# app-cache end\n# app-worker start\nworker\n# app-worker end\n# database start\ndb\n# database end\n";
+      const { content, stats } = removeBlocks({
+        fileContent,
+        blockNames: [],
+        blockNamePatterns: [/^app-/, /^database$/],
+        comment: "#",
+        markerStart: "start",
+        markerEnd: "end",
+        removeOrphans: false,
+        debug: false,
+        logger: { debug: () => {}, log: () => {}, warn: () => {} },
+      });
+
+      expect(content).toBe("");
+      expect(stats.removed).toBe(3);
+    });
+
     it("removes orphan blocks when removeOrphans is true", () => {
       const fileContent =
         "line1\n# blockinfile start\n\n# blockinfile end\nline2\n# blockinfile start   \n# blockinfile end\nline3\n";
@@ -117,6 +136,23 @@ describe("block-remover", () => {
       const { content, stats } = removeBlocks({
         fileContent,
         blockNames: ["blockinfile"],
+        comment: "#",
+        markerStart: "start",
+        markerEnd: "end",
+        removeOrphans: false,
+        debug: false,
+        logger: { debug: () => {}, log: () => {}, warn: () => {} },
+      });
+
+      expect(content).toBe(fileContent);
+      expect(stats.removed).toBe(0);
+    });
+
+    it("preserves complete non-matching blocks", () => {
+      const fileContent = "# keep start\ncontent\n# keep end\n";
+      const { content, stats } = removeBlocks({
+        fileContent,
+        blockNames: ["remove"],
         comment: "#",
         markerStart: "start",
         markerEnd: "end",

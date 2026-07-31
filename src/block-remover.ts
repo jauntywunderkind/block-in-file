@@ -18,6 +18,7 @@ export interface RemovalStats {
 export interface BlockRemoverOptions {
   fileContent: string;
   blockNames: string[];
+  blockNamePatterns?: RegExp[];
   comment: string;
   markerStart: string;
   markerEnd: string;
@@ -31,7 +32,16 @@ export function escapeRegex(str: string): string {
 }
 
 export function removeBlocks(opts: BlockRemoverOptions): { content: string; stats: RemovalStats } {
-  const { fileContent, blockNames, markerStart, markerEnd, removeOrphans, debug, logger } = opts;
+  const {
+    fileContent,
+    blockNames,
+    blockNamePatterns = [],
+    markerStart,
+    markerEnd,
+    removeOrphans,
+    debug,
+    logger,
+  } = opts;
   const comment = opts.comment.trimEnd();
 
   const lines = fileContent.split("\n");
@@ -45,6 +55,7 @@ export function removeBlocks(opts: BlockRemoverOptions): { content: string; stat
   let newLines: string[] = [];
   let inBlock = false;
   let blockStartLine = 0;
+  let blockOpener = "";
   let blockContent: string[] = [];
   let currentBlockName: string | null = null;
 
@@ -61,7 +72,11 @@ export function removeBlocks(opts: BlockRemoverOptions): { content: string; stat
         stripTagsForMatching(line.trim()) === `${comment} ${currentBlockName || ""} ${markerEnd}`;
 
       if (isCloser) {
-        const isTargetBlock = currentBlockName && blockNames.includes(currentBlockName);
+        const blockName = currentBlockName;
+        const isTargetBlock =
+          blockName !== null &&
+          (blockNames.includes(blockName) ||
+            blockNamePatterns.some((pattern) => pattern.test(blockName)));
         const contentStr = blockContent.join("\n");
         const isOrphan = contentStr.trim() === "" || contentStr.trim().length === 0;
 
@@ -91,7 +106,7 @@ export function removeBlocks(opts: BlockRemoverOptions): { content: string; stat
           continue;
         }
 
-        newLines.push(...blockContent);
+        newLines.push(blockOpener, ...blockContent);
         newLines.push(line);
         inBlock = false;
         currentBlockName = null;
@@ -108,6 +123,7 @@ export function removeBlocks(opts: BlockRemoverOptions): { content: string; stat
       ) {
         inBlock = true;
         blockStartLine = i;
+        blockOpener = line;
         currentBlockName = openerMatch[1] || "";
         blockContent = [];
       } else {
@@ -117,7 +133,7 @@ export function removeBlocks(opts: BlockRemoverOptions): { content: string; stat
   }
 
   if (inBlock) {
-    newLines.push(...blockContent);
+    newLines.push(blockOpener, ...blockContent);
     if (debug) {
       logger.warn(`Warning: Unclosed block starting at line ${blockStartLine + 1}`);
     }

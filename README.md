@@ -117,6 +117,8 @@ hello, world</code></pre> |
 | `--append-newline` | none | none | Append blank line after block |
 | `--attributes` | none | `<attributes>` | Set file attributes using `chattr` syntax (e.g. `+i`, `-i`, `+a`) |
 | `--remove-all` | none | `<remove-all>` | Remove all blocks with specified name(s), space-separated |
+| `--remove` | none | `<name>` | Remove all blocks with this name; may be repeated |
+| `--remove-match` | none | `<regex>` | Remove all blocks whose names match this regex; may be repeated |
 | `--remove-orphans` | none | none | Remove orphaned blocks (blocks with empty content) |
 | `--envsubst` | none | `[mode]` | Enable environment variable substitution. No value or `true`/`recursive` = recursive; `non-recursive` = single-pass; `false` = off (default: off) |
 | `--additive` | none | none | Ensure all input lines exist in block; add missing lines instead of replacing |
@@ -162,6 +164,8 @@ OPTIONS:
   --append-newline                                       Append blank line after block
   --attributes <attributes>                              Set file attributes using chattr syntax (e.g., '+i', '-i', '+a')
   --remove-all <remove-all>                              Remove all blocks with specified name(s), space-separated
+  --remove <name>                                        Remove all blocks with this name (repeatable)
+  --remove-match <regex>                                 Remove all blocks whose names match this regex (repeatable)
   --remove-orphans                                       Remove orphaned blocks (blocks with empty content)
   --envsubst [mode]                                      Enable environment variable substitution. No value or true/recursive = recursive; non-recursive = single-pass; false = off (default: off)
   --additive                                             Additive mode: ensure all input lines are in block, adding missing lines instead of replacing

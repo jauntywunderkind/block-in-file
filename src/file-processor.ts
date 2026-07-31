@@ -42,6 +42,8 @@ export interface ProcessContext {
   appendNewline?: boolean;
   attributes?: string;
   removeAll?: string;
+  remove?: string[];
+  removeMatch?: string[];
   removeOrphans?: boolean;
   envsubst?: EnvsubstMode;
   envsubstExclude?: RegExp;
@@ -90,6 +92,8 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     appendNewline,
     attributes,
     removeAll,
+    remove = [],
+    removeMatch = [],
     removeOrphans,
     envsubst,
     envsubstExclude,
@@ -204,14 +208,21 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     );
   }
 
-  if (removeAll) {
-    const blockNames = removeAll
-      .trim()
-      .split(/\s+/)
-      .filter((n) => n.length > 0);
+  if (removeAll || remove.length > 0 || removeMatch.length > 0 || removeOrphans) {
+    const blockNames = [
+      ...(removeAll
+        ? removeAll
+            .trim()
+            .split(/\s+/)
+            .filter((name) => name.length > 0)
+        : []),
+      ...remove,
+    ];
+    const blockNamePatterns = removeMatch.map((pattern) => new RegExp(pattern));
 
     if (debug) {
       logger.debug(`Removing blocks: ${blockNames.join(", ")}`);
+      logger.debug(`Removing blocks matching: ${removeMatch.join(", ")}`);
     }
 
     const commentMatch = opener.match(/^(#\s*|\/\/\s*)/) || opener.match(/^(\/\/\s*)/);
@@ -224,6 +235,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     const { content, stats } = removeBlocks({
       fileContent,
       blockNames,
+      blockNamePatterns,
       comment,
       markerStart,
       markerEnd,
@@ -243,7 +255,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
       }
     }
 
-    const outputText = formatOutputs([content], dos);
+    const outputText = formatOutputs(content.split("\n"), dos);
 
     if (output === "---" || output === "--") {
       let tempFile: string;

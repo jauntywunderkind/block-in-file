@@ -46,6 +46,8 @@ export interface ConfigExtension {
   appendNewline?: boolean;
   attributes?: string;
   removeAll?: string;
+  remove?: string[];
+  removeMatch?: string[];
   removeOrphans?: boolean;
   additive?: boolean;
   additiveBefore?: string;
@@ -172,6 +174,16 @@ export default function config() {
       ctx.addGlobalOption("remove-all", {
         type: "string",
         description: "Remove all blocks with specified name(s), space-separated",
+      });
+      ctx.addGlobalOption("remove", {
+        type: "string",
+        multiple: true,
+        description: "Remove all blocks with this name (repeatable)",
+      });
+      ctx.addGlobalOption("remove-match", {
+        type: "string",
+        multiple: true,
+        description: "Remove all blocks whose names match this regex (repeatable)",
       });
       ctx.addGlobalOption("remove-orphans", {
         type: "boolean",
@@ -321,6 +333,8 @@ export default function config() {
         appendNewline: ctx.values["append-newline"] as boolean | undefined,
         attributes: ctx.values.attributes as string | undefined,
         removeAll: ctx.values["remove-all"] as string | undefined,
+        remove: ctx.values.remove as string[] | undefined,
+        removeMatch: ctx.values["remove-match"] as string[] | undefined,
         removeOrphans: ctx.values["remove-orphans"] as boolean | undefined,
         additive: ctx.values.additive as boolean | undefined,
         additiveBefore: ctx.values["additive-before"] as string | undefined,

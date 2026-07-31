@@ -105,6 +105,8 @@ const command = define<{
         appendNewline: configExt.appendNewline,
         attributes: configExt.attributes,
         removeAll: configExt.removeAll,
+        remove: configExt.remove,
+        removeMatch: configExt.removeMatch,
         removeOrphans: configExt.removeOrphans,
         envsubst: configExt.envsubst,
         envsubstExclude: configExt.envsubstExclude,
@@ -135,7 +137,13 @@ const command = define<{
       }
     }
 
-    if (configExt.debug || configExt.removeAll) {
+    const removing =
+      Boolean(configExt.removeAll) ||
+      Boolean(configExt.remove?.length) ||
+      Boolean(configExt.removeMatch?.length) ||
+      Boolean(configExt.removeOrphans);
+
+    if (configExt.debug || removing) {
       const written = results.filter((r) => r.status === "written").length;
       const skipped = results.filter((r) => r.status === "skipped").length;
       const removed = results.filter((r) => r.status === "removed").length;
@@ -146,7 +154,7 @@ const command = define<{
         .filter((r) => r.status === "removed")
         .reduce((sum, r) => sum + (r.removalStats?.orphans || 0), 0);
 
-      if (configExt.removeAll) {
+      if (removing) {
         logger.log(
           `Done! Removed: ${removed} files, ${totalRemoved} blocks, ${totalOrphans} orphans`,
         );

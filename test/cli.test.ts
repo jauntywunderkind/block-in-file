@@ -225,6 +225,34 @@ describe("CLI", () => {
     });
   });
 
+  describe("block removal", () => {
+    it("accepts --remove multiple times", async () => {
+      const targetFile = path.join(tempDir, "target.txt");
+      await fs.writeFile(
+        targetFile,
+        "# first start\none\n# first end\n# second start\ntwo\n# second end\n# keep start\nthree\n# keep end\n",
+      );
+
+      runCli(`--remove first --remove second ${targetFile}`);
+
+      const result = await fs.readFile(targetFile, "utf-8");
+      expect(result).toBe("# keep start\nthree\n# keep end\n");
+    });
+
+    it("accepts --remove-match multiple times", async () => {
+      const targetFile = path.join(tempDir, "target.txt");
+      await fs.writeFile(
+        targetFile,
+        "# app-cache start\none\n# app-cache end\n# app-worker start\ntwo\n# app-worker end\n# database start\nthree\n# database end\n# keep start\nfour\n# keep end\n",
+      );
+
+      runCli(`--remove-match '^app-' --remove-match '^database$' ${targetFile}`);
+
+      const result = await fs.readFile(targetFile, "utf-8");
+      expect(result).toBe("# keep start\nfour\n# keep end\n");
+    });
+  });
+
   describe("multiple files", () => {
     it("processes multiple files", async () => {
       const file1 = path.join(tempDir, "file1.txt");
