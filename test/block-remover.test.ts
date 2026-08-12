@@ -165,6 +165,83 @@ describe("block-remover", () => {
       expect(stats.removed).toBe(0);
     });
 
+    // Regression (bif-remove-all-preserve-nontarget): --remove-all used to
+    // restore only the content and closer of non-target blocks, dropping
+    // their opener. Mirrors compfuzor's atuin config: removing
+    // atuin-search-mode must leave the adjacent atuin-daemon block intact.
+    it("preserves adjacent non-target block byte-for-byte when removing target", () => {
+      const fileContent = [
+        "detect_host_v2 = false",
+        "",
+        "# atuin-daemon start",
+        "# source: daemon.conf",
+        "enabled = true",
+        "# atuin-daemon end",
+        "# atuin-search-mode start",
+        'search_mode = "prefix"',
+        "# atuin-search-mode end",
+        "",
+      ].join("\n");
+      const expected = [
+        "detect_host_v2 = false",
+        "",
+        "# atuin-daemon start",
+        "# source: daemon.conf",
+        "enabled = true",
+        "# atuin-daemon end",
+        "",
+      ].join("\n");
+      const { content, stats } = removeBlocks({
+        fileContent,
+        blockNames: ["atuin-search-mode"],
+        comment: "#",
+        markerStart: "start",
+        markerEnd: "end",
+        removeOrphans: false,
+        debug: false,
+        logger: { debug: () => {}, log: () => {}, warn: () => {} },
+      });
+
+      expect(content).toBe(expected);
+      expect(stats.removed).toBe(1);
+      expect(stats.blocks[0].blockName).toBe("atuin-search-mode");
+    });
+
+    it("preserves non-target blocks on both sides of the target", () => {
+      const fileContent = [
+        "# keep-before start",
+        "before = true",
+        "# keep-before end",
+        "# target start",
+        "gone = true",
+        "# target end",
+        "# keep-after start",
+        "after = true",
+        "# keep-after end",
+      ].join("\n");
+      const expected = [
+        "# keep-before start",
+        "before = true",
+        "# keep-before end",
+        "# keep-after start",
+        "after = true",
+        "# keep-after end",
+      ].join("\n");
+      const { content, stats } = removeBlocks({
+        fileContent,
+        blockNames: ["target"],
+        comment: "#",
+        markerStart: "start",
+        markerEnd: "end",
+        removeOrphans: false,
+        debug: false,
+        logger: { debug: () => {}, log: () => {}, warn: () => {} },
+      });
+
+      expect(content).toBe(expected);
+      expect(stats.removed).toBe(1);
+    });
+
     it("handles unclosed blocks gracefully", () => {
       const fileContent = "line1\n# blockinfile start\ncontent\n";
       const { content, stats } = removeBlocks({
