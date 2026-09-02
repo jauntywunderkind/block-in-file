@@ -9,6 +9,7 @@ import config from "./src/plugins/config.ts";
 import io from "./src/plugins/io.ts";
 import diff from "./src/plugins/diff.ts";
 import { processFile, type ProcessContext, type ProcessResult } from "./src/file-processor.ts";
+import { readBlocks } from "./src/block-reader.ts";
 
 const command = define<{
   extensions: Record<typeof configId, ConfigExtension> &
@@ -27,18 +28,24 @@ const command = define<{
 
     let files = (positionals as string[]) || [];
 
+    if (configExt.read && files.length === 0) {
+      throw new Error("Need file argument for read mode");
+    }
+
     if (configExt.debug) {
       logger.debug(`Initial files: ${JSON.stringify(files)}`);
       logger.debug(`Output target: ${configExt.output}`);
     }
 
-    if (files.length === 0 && !configExt.diff) {
+    if (!configExt.read && files.length === 0 && !configExt.diff) {
       if (configExt.output === "---" || !configExt.output) {
         throw new Error("Need file argument or output target");
       }
       if (configExt.output !== "-" && configExt.output !== "--") {
         if (configExt.debug) {
-          logger.debug(`No positional file provided, using output path as target: ${configExt.output}`);
+          logger.debug(
+            `No positional file provided, using output path as target: ${configExt.output}`,
+          );
         }
         files = [configExt.output];
       }
@@ -54,6 +61,47 @@ const command = define<{
 
     const opener = `${configExt.comment} ${configExt.name} ${configExt.markerStart}`;
     const closer = `${configExt.comment} ${configExt.name} ${configExt.markerEnd}`;
+
+    if (configExt.read) {
+      if (files.length === 0) {
+        throw new Error("Need file argument for read mode");
+      }
+      const sourceLinePrefix = `${configExt.comment} source:`;
+      let found = 0;
+      let trailingNewline = true;
+      for (const file of files) {
+        let fileContent: string;
+        try {
+          fileContent = await io.readFile(file);
+        } catch {
+          logger.error(`read: cannot read ${file}`);
+          process.exitCode = 1;
+          continue;
+        }
+        const blocks = readBlocks(fileContent, { opener, closer, sourceLinePrefix });
+        if (blocks.length === 0) {
+          logger.error(`read: no block '${configExt.name}' found in ${file}`);
+          process.exitCode = 1;
+          continue;
+        }
+        for (const block of blocks) {
+          if (configExt.debug) {
+            logger.debug(
+              `read: block '${configExt.name}' in ${file} lines ${block.startLine}-${block.endLine || "EOF"}`,
+            );
+          }
+          const payload = block.body.join("\n");
+          // Separate consecutive payloads when the previous one did not
+          // already end with a newline, so stdout stays byte-exact per block.
+          if (found > 0 && !trailingNewline) process.stdout.write("\n");
+          process.stdout.write(payload);
+          trailingNewline = payload.endsWith("\n") || payload === "";
+          found++;
+        }
+      }
+      if (configExt.debug) logger.debug(`read: ${found} block(s)`);
+      return;
+    }
 
     const inputBlock = await io.readFile(configExt.input);
     if (configExt.debug) {
@@ -113,9 +161,7 @@ const command = define<{
         sourceLine: configExt.sourceAttribution
           ? `${configExt.comment} source: ${configExt.input === "-" ? "<STDIN>" : configExt.input}`
           : undefined,
-        sourceLinePrefix: configExt.sourceAttribution
-          ? `${configExt.comment} source:`
-          : undefined,
+        sourceLinePrefix: configExt.sourceAttribution ? `${configExt.comment} source:` : undefined,
         additive: configExt.additive,
         additiveBefore: configExt.additiveBefore,
         additiveAfter: configExt.additiveAfter,
@@ -171,6 +217,14 @@ cli(process.argv.slice(2), command, {
   name: "block-in-file",
   version: "1.0.0",
   plugins: [logger(), config(), io(), diff()],
+  // Read mode must own stdout byte-exactly (it feeds `diff <(...)`), so the
+  // gunshi header banner is suppressed for it. Otherwise replicate the
+  // default header (`<name> (<name> v<version>)`).
+  renderHeader: async (ctx) => {
+    if ((ctx.values as Record<string, unknown> | undefined)?.read) return "";
+    const name = ctx.env.name || "";
+    return `${name} (${name}${ctx.env.version ? ` v${ctx.env.version}` : ""})`;
+  },
 }).catch((err) => {
   console.error(err);
   process.exit(1);

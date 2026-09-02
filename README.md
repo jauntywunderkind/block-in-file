@@ -86,6 +86,7 @@ critical header
 header content
 # header end
 hello, world</code></pre> |
+| Read a block back with `--read` (markers and provenance excluded, byte-exact; exits 1 when the block is missing). `diff <(block-in-file --read -n deploy hello-world.txt) deploy.txt` is a drift check against the source the block was installed from. | `block-in-file hello-world.txt --name deploy --read` | none | <pre><code>deploy=true</code></pre> | unchanged |
 
 ## Full Usage
 
@@ -120,6 +121,7 @@ hello, world</code></pre> |
 | `--remove` | none | `<name>` | Remove all blocks with this name; may be repeated |
 | `--remove-match` | none | `<regex>` | Remove all blocks whose names match this regex; may be repeated |
 | `--remove-orphans` | none | none | Remove orphaned blocks (blocks with empty content) |
+| `--read` | none | none | Read mode: print the named block's contents (markers and provenance excluded) instead of writing; exits 1 when no block is found. Output is byte-exact, so `diff <(block-in-file --read -n NAME FILE) SOURCE` is a drift check against the file the block was installed from |
 | `--envsubst` | none | `[mode]` | Enable environment variable substitution. No value or `true`/`recursive` = recursive; `non-recursive` = single-pass; `false` = off (default: off) |
 | `--additive` | none | none | Ensure all input lines exist in block; add missing lines instead of replacing |
 | `--additive-before` | none | `<additive-before>` | Position to add missing lines in additive mode (`regex`, `BOF`, or `EOB`/`EOF`) |
@@ -167,6 +169,9 @@ OPTIONS:
   --remove <name>                                        Remove all blocks with this name (repeatable)
   --remove-match <regex>                                 Remove all blocks whose names match this regex (repeatable)
   --remove-orphans                                       Remove orphaned blocks (blocks with empty content)
+  --read                                                 Read mode: print the named block's contents (markers and
+                                                         provenance excluded) instead of writing; exits 1 when no
+                                                         block is found
   --envsubst [mode]                                      Enable environment variable substitution. No value or true/recursive = recursive; non-recursive = single-pass; false = off (default: off)
   --additive                                             Additive mode: ensure all input lines are in block, adding missing lines instead of replacing
   --additive-before <additive-before>                    Position to add missing lines in additive mode (regex, BOF for beginning of file, or EOB/EOF for end of block)

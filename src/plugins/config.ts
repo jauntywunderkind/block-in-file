@@ -49,6 +49,7 @@ export interface ConfigExtension {
   remove?: string[];
   removeMatch?: string[];
   removeOrphans?: boolean;
+  read?: boolean;
   additive?: boolean;
   additiveBefore?: string;
   additiveAfter?: string;
@@ -189,6 +190,11 @@ export default function config() {
         type: "boolean",
         description: "Remove orphaned blocks (blocks with empty content)",
       });
+      ctx.addGlobalOption("read", {
+        type: "boolean",
+        description:
+          "Read mode: print the named block's contents (markers and provenance excluded) instead of writing; exits 1 when no block is found",
+      });
       ctx.addGlobalOption("envsubst", {
         type: "custom",
         description:
@@ -208,8 +214,7 @@ export default function config() {
       });
       ctx.addGlobalOption("source-attribution", {
         type: "custom",
-        description:
-          "Record input source as comment below block header (default: true)",
+        description: "Record input source as comment below block header (default: true)",
         parse: (value: string): boolean | undefined => {
           if (value === undefined || value === "") return true;
           if (value === "false" || value === "0") return false;
@@ -336,6 +341,7 @@ export default function config() {
         remove: ctx.values.remove as string[] | undefined,
         removeMatch: ctx.values["remove-match"] as string[] | undefined,
         removeOrphans: ctx.values["remove-orphans"] as boolean | undefined,
+        read: ctx.values.read as boolean | undefined,
         additive: ctx.values.additive as boolean | undefined,
         additiveBefore: ctx.values["additive-before"] as string | undefined,
         additiveAfter: ctx.values["additive-after"] as string | undefined,
