@@ -103,8 +103,18 @@ const command = define<{
       return;
     }
 
-    const inputBlock = await io.readFile(configExt.input);
-    if (configExt.debug) {
+    // Removal invocations are terminal in processFile: they never insert,
+    // so block input goes unused. Reading it anyway would block forever on
+    // the -i stdin default whenever a scripted removal runs with an
+    // interactive (never-EOF) stdin — as compfuzor's config processor
+    // probe does from a user's terminal.
+    const removing =
+      Boolean(configExt.removeAll) ||
+      Boolean(configExt.remove?.length) ||
+      Boolean(configExt.removeMatch?.length) ||
+      Boolean(configExt.removeOrphans);
+    const inputBlock = removing ? "" : await io.readFile(configExt.input);
+    if (configExt.debug && !removing) {
       logger.debug(`Input block: ${inputBlock.slice(0, 50)}...`);
     }
 
@@ -182,12 +192,6 @@ const command = define<{
         );
       }
     }
-
-    const removing =
-      Boolean(configExt.removeAll) ||
-      Boolean(configExt.remove?.length) ||
-      Boolean(configExt.removeMatch?.length) ||
-      Boolean(configExt.removeOrphans);
 
     if (configExt.debug || removing) {
       const written = results.filter((r) => r.status === "written").length;

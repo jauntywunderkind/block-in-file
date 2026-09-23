@@ -251,6 +251,44 @@ describe("CLI", () => {
       const result = await fs.readFile(targetFile, "utf-8");
       expect(result).toBe("# keep start\nfour\n# keep end\n");
     });
+
+    it("does not read stdin for removal-only invocations", async () => {
+      const targetFile = path.join(tempDir, "target.txt");
+      await fs.writeFile(
+        targetFile,
+        "# app-cache start\none\n# app-cache end\n# keep start\ntwo\n# keep end\n",
+      );
+
+      // stdin stays open and never EOFs, like an interactive terminal:
+      // a removal that eagerly read the -i default would hang here.
+      const cwd = path.resolve(import.meta.dirname!, "..");
+      const child = spawn(
+        "npx",
+        ["tsx", "block-in-file.ts", "--remove-match", "^app-", targetFile],
+        {
+          cwd,
+          shell: true,
+          stdio: ["pipe", "pipe", "pipe"],
+        },
+      );
+      let output = "";
+      child.stdout?.on("data", (data) => (output += data.toString()));
+      child.stderr?.on("data", (data) => (output += data.toString()));
+
+      const code = await new Promise<number | null>((resolve, reject) => {
+        child.once("error", reject);
+        child.once("close", resolve);
+        setTimeout(
+          () => reject(new Error(`removal hung on stdin (never closed it): ${output}`)),
+          15000,
+        );
+      });
+      child.stdin?.end();
+
+      expect(code).toBe(0);
+      const result = await fs.readFile(targetFile, "utf-8");
+      expect(result).toBe("# keep start\ntwo\n# keep end\n");
+    });
   });
 
   describe("multiple files", () => {
