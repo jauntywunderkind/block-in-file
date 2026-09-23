@@ -58,10 +58,7 @@ describe("attributes", () => {
   });
 
   describe("supportsChattr", () => {
-    it.each([
-      "darwin",
-      "win32",
-    ] as const)("returns false on $platform", async (platform) => {
+    it.each(["darwin", "win32"] as const)("returns false on $platform", async (platform) => {
       const originalPlatform = process.platform;
       Object.defineProperty(process, "platform", { value: platform });
 

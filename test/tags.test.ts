@@ -11,8 +11,14 @@ describe("tag parsing", () => {
   it.each([
     { line: "# block start [mytag]", expected: [{ name: "mytag", value: "" }] },
     { line: "# block start [mytag:value]", expected: [{ name: "mytag", value: "value" }] },
-    { line: "# block start [timestamp:1770765014846000000]", expected: [{ name: "timestamp", value: "1770765014846000000" }] },
-    { line: "# block start [tag-name_1:value_test]", expected: [{ name: "tag-name_1", value: "value_test" }] },
+    {
+      line: "# block start [timestamp:1770765014846000000]",
+      expected: [{ name: "timestamp", value: "1770765014846000000" }],
+    },
+    {
+      line: "# block start [tag-name_1:value_test]",
+      expected: [{ name: "tag-name_1", value: "value_test" }],
+    },
     { line: "# block-in-file start [tag:value]", expected: [{ name: "tag", value: "value" }] },
   ])("should parse tags from $line", ({ line, expected }) => {
     const tags = parseTags(line);
@@ -77,8 +83,16 @@ describe("tag removal", () => {
 
 describe("tag adding", () => {
   it.each([
-    { line: "# block start", tags: [{ name: "mytag", value: "value" }], expected: "# block start [mytag:value]" },
-    { line: "# block start", tags: [{ name: "mytag", value: "" }], expected: "# block start [mytag]" },
+    {
+      line: "# block start",
+      tags: [{ name: "mytag", value: "value" }],
+      expected: "# block start [mytag:value]",
+    },
+    {
+      line: "# block start",
+      tags: [{ name: "mytag", value: "" }],
+      expected: "# block start [mytag]",
+    },
   ])("should add tags to: $line", ({ line, tags, expected }) => {
     const result = addTags(line, tags);
     expect(result).toBe(expected);

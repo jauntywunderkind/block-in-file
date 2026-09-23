@@ -82,14 +82,24 @@ describe("block-parser", () => {
   describe("insertion into empty or simple files", () => {
     it.each([
       { lines: [], expected: ["# blockinfile start", "NEW CONTENT", "# blockinfile end"] },
-      { lines: ["line1", "line2", "line3"], expectedContains: ["# blockinfile start", "NEW CONTENT", "# blockinfile end", "line1", "line2", "line3"] },
+      {
+        lines: ["line1", "line2", "line3"],
+        expectedContains: [
+          "# blockinfile start",
+          "NEW CONTENT",
+          "# blockinfile end",
+          "line1",
+          "line2",
+          "line3",
+        ],
+      },
     ])("inserts block: lines=$lines", ({ lines, expected, expectedContains }) => {
       const result = parseLines(lines, defaultOpts);
       if (expected) {
         expect(result.outputs).toEqual(expected);
       }
       if (expectedContains) {
-        expectedContains.forEach(str => expect(result.outputs).toContain(str));
+        expectedContains.forEach((str) => expect(result.outputs).toContain(str));
       }
     });
   });
@@ -168,13 +178,27 @@ describe("block-parser", () => {
         description: "before matching line",
         lines: ["line1", "TARGET", "line3"],
         opts: { ...defaultOpts, before: /TARGET/ },
-        expected: ["line1", "# blockinfile start", "NEW CONTENT", "# blockinfile end", "TARGET", "line3"],
+        expected: [
+          "line1",
+          "# blockinfile start",
+          "NEW CONTENT",
+          "# blockinfile end",
+          "TARGET",
+          "line3",
+        ],
       },
       {
         description: "after matching line",
         lines: ["line1", "TARGET", "line3"],
         opts: { ...defaultOpts, after: /TARGET/ },
-        expected: ["line1", "TARGET", "# blockinfile start", "NEW CONTENT", "# blockinfile end", "line3"],
+        expected: [
+          "line1",
+          "TARGET",
+          "# blockinfile start",
+          "NEW CONTENT",
+          "# blockinfile end",
+          "line3",
+        ],
       },
       {
         description: "falls back to end when no match",

@@ -28,107 +28,152 @@ Assume `hello-world.txt` starts as:
 hello, world
 ```
 
-| Use Case | Invocation | Stdin | Before (`hello-world.txt`) | Output (`hello-world.txt` after command) |
-| --- | --- | --- | --- | --- |
-| Default managed block. Good for idempotent inserts. | `block-in-file hello-world.txt` | `managed line` | <pre><code>hello, world</code></pre> | <pre><code>hello, world
+| Use Case                                            | Invocation                      | Stdin          | Before (`hello-world.txt`)           | Output (`hello-world.txt` after command) |
+| --------------------------------------------------- | ------------------------------- | -------------- | ------------------------------------ | ---------------------------------------- |
+| Default managed block. Good for idempotent inserts. | `block-in-file hello-world.txt` | `managed line` | <pre><code>hello, world</code></pre> | <pre><code>hello, world                  |
+
 # blockinfile start
+
 managed line
+
 # blockinfile end</code></pre> |
+
 | Force placement at file start with `BOF`. | `block-in-file hello-world.txt --name header --before BOF` | `top note` | <pre><code>hello, world</code></pre> | <pre><code># header start
 top note
+
 # header end
+
 hello, world</code></pre> |
 | Force placement at file end with `EOF`. | `block-in-file hello-world.txt --name footer --after EOF` | `bottom note` | <pre><code>hello, world</code></pre> | <pre><code>hello, world
+
 # footer start
+
 bottom note
+
 # footer end</code></pre> |
+
 | Regex anchor placement. Insert before a matched line (`^hello, world$`). | `block-in-file hello-world.txt --name preface --before '^hello, world$'` | `inserted before greeting` | <pre><code>title
 hello, world
 goodbye</code></pre> | <pre><code>title
+
 # preface start
+
 inserted before greeting
+
 # preface end
+
 hello, world
 goodbye</code></pre> |
 | Manage multiple independent blocks with different names. | `block-in-file hello-world.txt --name owners` then `block-in-file hello-world.txt --name status` | first run: `owner=team-a`; second run: `build=green` | <pre><code>hello, world</code></pre> | <pre><code>hello, world
+
 # owners start
+
 owner=team-a
+
 # owners end
+
 # status start
+
 build=green
+
 # status end</code></pre> |
+
 | Read block content from a file using `-i` instead of stdin. | `block-in-file hello-world.txt --name from-file -i deploy.txt` | none (`deploy.txt` contains `deploy=true`) | <pre><code>hello, world</code></pre> | <pre><code>hello, world
+
 # from-file start
+
 deploy=true
+
 # from-file end</code></pre> |
+
 | Merge marker tags while updating content (`--timestamp` + `--tag-mode merge`). | `block-in-file hello-world.txt --name deploy --timestamp epoch-sec --tag-mode merge` | `deploy=true` | <pre><code>hello, world
+
 # deploy start [env:dev]
+
 deploy=false
+
 # deploy end [env:dev]</code></pre> | <pre><code>hello, world
+
 # deploy start [env:dev] [timestamp:1771009491]
+
 deploy=true
+
 # deploy end [env:dev] [timestamp:1771009491]</code></pre> |
+
 | Anchor block at file start with `--anchor bof`. Higher priority = closer to edge. | `block-in-file hello-world.txt --name header --anchor bof` | `header content` | <pre><code>hello, world</code></pre> | <pre><code># header start [anchor-bof:100]
 header content
+
 # header end
+
 hello, world</code></pre> |
 | Anchor block at file end with `--anchor eof`. | `block-in-file hello-world.txt --name footer --anchor eof` | `footer content` | <pre><code>hello, world</code></pre> | <pre><code>hello, world
+
 # footer start [anchor-eof:100]
+
 footer content
+
 # footer end</code></pre> |
+
 | Anchor with custom priority. Higher values are more strongly positioned. | `block-in-file hello-world.txt --name critical --anchor bof:200` | `critical header` | <pre><code># header start [anchor-bof:100]
 header content
+
 # header end
+
 hello, world</code></pre> | <pre><code># critical start [anchor-bof:200]
 critical header
+
 # critical end
+
 # header start [anchor-bof:100]
+
 header content
+
 # header end
+
 hello, world</code></pre> |
 | Read a block back with `--read` (markers and provenance excluded, byte-exact; exits 1 when the block is missing). `diff <(block-in-file --read -n deploy hello-world.txt) deploy.txt` is a drift check against the source the block was installed from. | `block-in-file hello-world.txt --name deploy --read` | none | <pre><code>deploy=true</code></pre> | unchanged |
 
 ## Full Usage
 
-| Flag | Aliases | Arguments | Description |
-| --- | --- | --- | --- |
-| `--help` | `-h` | none | Display this help message |
-| `--version` | `-v` | none | Display this version |
-| `--debug` | `-d` | none | Enable debug output |
-| `--name` | `-n` | `[name]` | Name for block (default: `blockinfile`) |
-| `--comment` | `-c` | `[comment]` | Comment string for marker (default: `#`) |
-| `--marker-start` | none | `[marker-start]` | Marker for start (default: `start`) |
-| `--marker-end` | none | `[marker-end]` | Marker for end (default: `end`) |
-| `--dos` | none | none | Use DOS line endings |
-| `--input` | `-i` | `[input]` | Input file to read contents from, or `-` from stdin (default: `-`) |
-| `--output` | `-o` | `[output]` | Output file, or `-` for stdout, or `--` for no output, or `---` for overwriting existing file (default: `---`) |
-| `--before` | `-b` | `<before>` | Insert block before matching line (regex or `BOF` for beginning of file) |
-| `--after` | `-a` | `<after>` | Insert block after matching line (regex or `EOF` for end of file) |
-| `--create` | `-C` | `<create>` | Create file or block if missing (`file`, `block`, `true`, `false`) |
-| `--diff` | `-D` | optional output file path | Print diff |
-| `--backup` | `-B` | `<backup>` | Create backup with suffix pattern (e.g. `foo`, `bak`) |
-| `--backup-dir` | none | `<backup-dir>` | Directory to store backup files |
-| `--state-on-fail` | none | `<state-on-fail>` | Behavior when backup fails: `iterate` (add `.1` `.2`), `fail`, `overwrite` |
-| `--validate` | `-v` | `<validate>` | Validate with external command (use `%s` for file path) |
-| `--mode` | none | `<mode>` | Operation mode: `ensure` (idempotent), `only` (create if missing), `none` (legacy always update) |
-| `--force` | `-f` | none | Force mode; skip validation failures |
-| `--temp-ext` | none | `<temp-ext>` | Generic temp file extension (fallback for atomic/prevalidate) |
-| `--temp-ext-atomic` | none | `<temp-ext-atomic>` | Extension for atomic write temp files (default: `.atomic`) |
-| `--temp-ext-prevalidate` | none | `<temp-ext-prevalidate>` | Extension for validation temp files (default: `.prevalidate`) |
-| `--append-newline` | none | none | Append blank line after block |
-| `--attributes` | none | `<attributes>` | Set file attributes using `chattr` syntax (e.g. `+i`, `-i`, `+a`) |
-| `--remove-all` | none | `<remove-all>` | Remove all blocks with specified name(s), space-separated |
-| `--remove` | none | `<name>` | Remove all blocks with this name; may be repeated |
-| `--remove-match` | none | `<regex>` | Remove all blocks whose names match this regex; may be repeated |
-| `--remove-orphans` | none | none | Remove orphaned blocks (blocks with empty content) |
-| `--read` | none | none | Read mode: print the named block's contents (markers and provenance excluded) instead of writing; exits 1 when no block is found. Output is byte-exact, so `diff <(block-in-file --read -n NAME FILE) SOURCE` is a drift check against the file the block was installed from |
-| `--envsubst` | none | `[mode]` | Enable environment variable substitution. No value or `true`/`recursive` = recursive; `non-recursive` = single-pass; `false` = off (default: off) |
-| `--additive` | none | none | Ensure all input lines exist in block; add missing lines instead of replacing |
-| `--additive-before` | none | `<additive-before>` | Position to add missing lines in additive mode (`regex`, `BOF`, or `EOB`/`EOF`) |
-| `--additive-after` | none | `<additive-after>` | Position to add missing lines in additive mode (`regex`, `EOF`, or `EOB`) |
-| `--timestamp` | none | `<timestamp>` | Add timestamp to markers (default: `epoch-nano`; options: `epoch-nano`, `epoch-sec`, `iso8601`) |
-| `--tag-mode` | none | `<tag-mode>` | Tag handling: `merge` (default) or `replace` |
-| `--anchor` | none | `<anchor>` | Anchor position: `bof[:priority]` or `eof[:priority]`. Higher priority = stronger edge positioning. Default priority: 100 |
+| Flag                     | Aliases | Arguments                 | Description                                                                                                                                                                                                                                                                  |
+| ------------------------ | ------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--help`                 | `-h`    | none                      | Display this help message                                                                                                                                                                                                                                                    |
+| `--version`              | `-v`    | none                      | Display this version                                                                                                                                                                                                                                                         |
+| `--debug`                | `-d`    | none                      | Enable debug output                                                                                                                                                                                                                                                          |
+| `--name`                 | `-n`    | `[name]`                  | Name for block (default: `blockinfile`)                                                                                                                                                                                                                                      |
+| `--comment`              | `-c`    | `[comment]`               | Comment string for marker (default: `#`)                                                                                                                                                                                                                                     |
+| `--marker-start`         | none    | `[marker-start]`          | Marker for start (default: `start`)                                                                                                                                                                                                                                          |
+| `--marker-end`           | none    | `[marker-end]`            | Marker for end (default: `end`)                                                                                                                                                                                                                                              |
+| `--dos`                  | none    | none                      | Use DOS line endings                                                                                                                                                                                                                                                         |
+| `--input`                | `-i`    | `[input]`                 | Input file to read contents from, or `-` from stdin (default: `-`)                                                                                                                                                                                                           |
+| `--output`               | `-o`    | `[output]`                | Output file, or `-` for stdout, or `--` for no output, or `---` for overwriting existing file (default: `---`)                                                                                                                                                               |
+| `--before`               | `-b`    | `<before>`                | Insert block before matching line (regex or `BOF` for beginning of file)                                                                                                                                                                                                     |
+| `--after`                | `-a`    | `<after>`                 | Insert block after matching line (regex or `EOF` for end of file)                                                                                                                                                                                                            |
+| `--create`               | `-C`    | `<create>`                | Create file or block if missing (`file`, `block`, `true`, `false`)                                                                                                                                                                                                           |
+| `--diff`                 | `-D`    | optional output file path | Print diff                                                                                                                                                                                                                                                                   |
+| `--backup`               | `-B`    | `<backup>`                | Create backup with suffix pattern (e.g. `foo`, `bak`)                                                                                                                                                                                                                        |
+| `--backup-dir`           | none    | `<backup-dir>`            | Directory to store backup files                                                                                                                                                                                                                                              |
+| `--state-on-fail`        | none    | `<state-on-fail>`         | Behavior when backup fails: `iterate` (add `.1` `.2`), `fail`, `overwrite`                                                                                                                                                                                                   |
+| `--validate`             | `-v`    | `<validate>`              | Validate with external command (use `%s` for file path)                                                                                                                                                                                                                      |
+| `--mode`                 | none    | `<mode>`                  | Operation mode: `ensure` (idempotent), `only` (create if missing), `none` (legacy always update)                                                                                                                                                                             |
+| `--force`                | `-f`    | none                      | Force mode; skip validation failures                                                                                                                                                                                                                                         |
+| `--temp-ext`             | none    | `<temp-ext>`              | Generic temp file extension (fallback for atomic/prevalidate)                                                                                                                                                                                                                |
+| `--temp-ext-atomic`      | none    | `<temp-ext-atomic>`       | Extension for atomic write temp files (default: `.atomic`)                                                                                                                                                                                                                   |
+| `--temp-ext-prevalidate` | none    | `<temp-ext-prevalidate>`  | Extension for validation temp files (default: `.prevalidate`)                                                                                                                                                                                                                |
+| `--append-newline`       | none    | none                      | Append blank line after block                                                                                                                                                                                                                                                |
+| `--attributes`           | none    | `<attributes>`            | Set file attributes using `chattr` syntax (e.g. `+i`, `-i`, `+a`)                                                                                                                                                                                                            |
+| `--remove-all`           | none    | `<remove-all>`            | Remove all blocks with specified name(s), space-separated                                                                                                                                                                                                                    |
+| `--remove`               | none    | `<name>`                  | Remove all blocks with this name; may be repeated                                                                                                                                                                                                                            |
+| `--remove-match`         | none    | `<regex>`                 | Remove all blocks whose names match this regex; may be repeated                                                                                                                                                                                                              |
+| `--remove-orphans`       | none    | none                      | Remove orphaned blocks (blocks with empty content)                                                                                                                                                                                                                           |
+| `--read`                 | none    | none                      | Read mode: print the named block's contents (markers and provenance excluded) instead of writing; exits 1 when no block is found. Output is byte-exact, so `diff <(block-in-file --read -n NAME FILE) SOURCE` is a drift check against the file the block was installed from |
+| `--envsubst`             | none    | `[mode]`                  | Enable environment variable substitution. No value or `true`/`recursive` = recursive; `non-recursive` = single-pass; `false` = off (default: off)                                                                                                                            |
+| `--additive`             | none    | none                      | Ensure all input lines exist in block; add missing lines instead of replacing                                                                                                                                                                                                |
+| `--additive-before`      | none    | `<additive-before>`       | Position to add missing lines in additive mode (`regex`, `BOF`, or `EOB`/`EOF`)                                                                                                                                                                                              |
+| `--additive-after`       | none    | `<additive-after>`        | Position to add missing lines in additive mode (`regex`, `EOF`, or `EOB`)                                                                                                                                                                                                    |
+| `--timestamp`            | none    | `<timestamp>`             | Add timestamp to markers (default: `epoch-nano`; options: `epoch-nano`, `epoch-sec`, `iso8601`)                                                                                                                                                                              |
+| `--tag-mode`             | none    | `<tag-mode>`              | Tag handling: `merge` (default) or `replace`                                                                                                                                                                                                                                 |
+| `--anchor`               | none    | `<anchor>`                | Anchor position: `bof[:priority]` or `eof[:priority]`. Higher priority = stronger edge positioning. Default priority: 100                                                                                                                                                    |
 
 <details>
 <summary>Expand original CLI help text</summary>

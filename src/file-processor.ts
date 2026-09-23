@@ -107,7 +107,9 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     anchor,
   } = ctx;
 
-  const processedInputBlock = envsubst ? substitute(inputBlock, { mode: envsubst, exclude: envsubstExclude }) : inputBlock;
+  const processedInputBlock = envsubst
+    ? substitute(inputBlock, { mode: envsubst, exclude: envsubstExclude })
+    : inputBlock;
 
   if (debug) {
     logger.debug(`Processing file: ${file}`);
@@ -296,7 +298,13 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
   }
 
   const blockExists = fileContent.includes(opener);
-  const wouldChange = blockWouldChange(fileContent, processedInputBlock, opener, closer, sourceLinePrefix);
+  const wouldChange = blockWouldChange(
+    fileContent,
+    processedInputBlock,
+    opener,
+    closer,
+    sourceLinePrefix,
+  );
   const state = detectBlockState(ctx.fileExists, blockExists, wouldChange);
 
   if (mode && mode !== "none") {

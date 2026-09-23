@@ -30,14 +30,18 @@ describe("output utilities", () => {
     it.each([
       { original: "line1\nline2\n", modified: "line1\nNEW\nline2\n", expected: "+NEW" },
       { original: "line1\nOLD\nline2\n", modified: "line1\nline2\n", expected: "-OLD" },
-      { original: "line1\nOLD\nline2\n", modified: "line1\nNEW\nline2\n", expectedContains: ["-OLD", "+NEW"] },
+      {
+        original: "line1\nOLD\nline2\n",
+        modified: "line1\nNEW\nline2\n",
+        expectedContains: ["-OLD", "+NEW"],
+      },
     ])("handles diff: $modified", ({ original, modified, expected, expectedContains }) => {
       const diff = generateDiff(original, modified, "test.txt");
       if (expected) {
         expect(diff).toContain(expected);
       }
       if (expectedContains) {
-        expectedContains.forEach(str => expect(diff).toContain(str));
+        expectedContains.forEach((str) => expect(diff).toContain(str));
       }
     });
   });

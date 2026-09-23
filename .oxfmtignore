@@ -1,0 +1,9 @@
+# Shared formatter/linter excludes: build output, dependencies, work-in-progress
+# notes, beads metadata, and agent scratch are not product code.
+node_modules/
+dist/
+coverage/
+.design/
+.beads/
+.test-agent/
+doc/

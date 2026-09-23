@@ -9,7 +9,10 @@ describe("timestamp generation", () => {
   it.each([
     { format: "epoch-nano" as const, pattern: /^\[timestamp:\d+\]$/ },
     { format: "epoch-sec" as const, pattern: /^\[timestamp:\d+\]$/ },
-    { format: "iso8601" as const, pattern: /^\[timestamp:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\]$/ },
+    {
+      format: "iso8601" as const,
+      pattern: /^\[timestamp:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\]$/,
+    },
   ])("should generate $format format", ({ format, pattern }) => {
     const timestamp = generateTimestampTag(format);
     expect(timestamp).toMatch(pattern);
@@ -43,24 +46,20 @@ describe("timestamp generation", () => {
 });
 
 describe("timestamp format parsing", () => {
-  it.each([
-    "epoch-nano",
-    "epoch-sec",
-    "iso8601",
-  ] as TimestampFormat[])("should parse $s", (format) => {
-    const result = parseTimestampFormat(format);
-    expect(result).toBe(format);
-  });
+  it.each(["epoch-nano", "epoch-sec", "iso8601"] as TimestampFormat[])(
+    "should parse $s",
+    (format) => {
+      const result = parseTimestampFormat(format);
+      expect(result).toBe(format);
+    },
+  );
 
   it("should return undefined for undefined input", () => {
     const result = parseTimestampFormat(undefined);
     expect(result).toBeUndefined();
   });
 
-  it.each([
-    "invalid",
-    "unknown",
-  ])("should throw error for invalid format: $s", (format) => {
+  it.each(["invalid", "unknown"])("should throw error for invalid format: $s", (format) => {
     expect(() => parseTimestampFormat(format)).toThrow(`Invalid timestamp format: ${format}`);
   });
 });

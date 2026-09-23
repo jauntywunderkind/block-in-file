@@ -12,12 +12,16 @@ describe("envsubst", () => {
     it.each([
       { input: "content: ${TEST_VAR}", vars: { TEST_VAR: "hello" }, expected: "content: hello" },
       { input: "${VAR1} and ${VAR2}", vars: { VAR1: "foo", VAR2: "bar" }, expected: "foo and bar" },
-      { input: "${PREFIX}-middle-${SUFFIX}", vars: { PREFIX: "pre", SUFFIX: "post" }, expected: "pre-middle-post" },
+      {
+        input: "${PREFIX}-middle-${SUFFIX}",
+        vars: { PREFIX: "pre", SUFFIX: "post" },
+        expected: "pre-middle-post",
+      },
     ])("should substitute: $input", ({ input, vars, expected }) => {
       Object.assign(process.env, vars);
       const result = substitute(input, { mode: "non-recursive" });
       expect(result).toBe(expected);
-      Object.keys(vars).forEach(key => delete process.env[key]);
+      Object.keys(vars).forEach((key) => delete process.env[key]);
     });
   });
 
@@ -29,7 +33,7 @@ describe("envsubst", () => {
       Object.assign(process.env, vars);
       const result = substitute(input, { mode: "non-recursive" });
       expect(result).toBe(expected);
-      Object.keys(vars).forEach(key => delete process.env[key]);
+      Object.keys(vars).forEach((key) => delete process.env[key]);
     });
   });
 
@@ -137,14 +141,22 @@ describe("envsubst", () => {
     });
 
     it.each([
-      { input: "${MY_LONG_VAR_NAME}", varName: "MY_LONG_VAR_NAME", value: "value", expected: "value" },
+      {
+        input: "${MY_LONG_VAR_NAME}",
+        varName: "MY_LONG_VAR_NAME",
+        value: "value",
+        expected: "value",
+      },
       { input: "${VAR123}", varName: "VAR123", value: "value", expected: "value" },
-    ])("should handle variable names with special characters: $input", ({ input, varName, value, expected }) => {
-      process.env[varName] = value;
-      const result = substitute(input, { mode: "non-recursive" });
-      expect(result).toBe(expected);
-      delete process.env[varName];
-    });
+    ])(
+      "should handle variable names with special characters: $input",
+      ({ input, varName, value, expected }) => {
+        process.env[varName] = value;
+        const result = substitute(input, { mode: "non-recursive" });
+        expect(result).toBe(expected);
+        delete process.env[varName];
+      },
+    );
 
     it("should handle variables with empty values", () => {
       process.env.EMPTY_VAR = "";

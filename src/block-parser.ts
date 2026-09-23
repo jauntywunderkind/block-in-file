@@ -1,10 +1,7 @@
 import type { ParseResult } from "./types.ts";
 import { stripTagsForMatching } from "./tags/tags.ts";
 import type { AnchorInfo } from "./anchor.ts";
-import {
-  findBlocksAndAnchors,
-  calculateInsertPosition,
-} from "./anchor.ts";
+import { findBlocksAndAnchors, calculateInsertPosition } from "./anchor.ts";
 
 export interface ParseOptions {
   opener: string;
@@ -183,7 +180,9 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
     if (anchor && matched === -1 && !before && !after) {
       const existingBlocks = findBlocksAndAnchors(lines, opener, closer);
       const insertPos = calculateInsertPosition(lines, anchor, existingBlocks);
-      const blockLines = sourceLine ? [outputOpener, sourceLine, ...inputLines, outputCloser] : [outputOpener, ...inputLines, outputCloser];
+      const blockLines = sourceLine
+        ? [outputOpener, sourceLine, ...inputLines, outputCloser]
+        : [outputOpener, ...inputLines, outputCloser];
       outputs.splice(insertPos, 0, ...blockLines);
       if (appendNewline) {
         outputs.splice(insertPos + blockLines.length, 0, "");
@@ -194,7 +193,9 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
         matched = i;
       }
       const insertOffset = matched + (after ? 1 : 0);
-      const blockLines = sourceLine ? [outputOpener, sourceLine, ...inputLines, outputCloser] : [outputOpener, ...inputLines, outputCloser];
+      const blockLines = sourceLine
+        ? [outputOpener, sourceLine, ...inputLines, outputCloser]
+        : [outputOpener, ...inputLines, outputCloser];
       outputs.splice(insertOffset, 0, ...blockLines);
       if (appendNewline) {
         outputs.splice(insertOffset + blockLines.length, 0, "");
