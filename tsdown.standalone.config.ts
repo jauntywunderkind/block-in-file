@@ -7,7 +7,7 @@ import { defineConfig } from "tsdown";
 export default defineConfig({
   clean: true,
   dts: false,
-  entry: { "block-in-file.standalone": "block-in-file.ts" },
+  entry: { "block-in-file.standalone": "block-in-file.standalone.ts" },
   format: "esm",
   outDir: "dist",
   deps: { alwaysBundle: [/./] },
