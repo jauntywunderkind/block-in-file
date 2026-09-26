@@ -25,6 +25,8 @@ export interface ProcessContext {
   closer: string;
   before?: RegExp | boolean;
   after?: RegExp | boolean;
+  adopt?: RegExp;
+  updateOnly?: boolean;
   mode?: ModeArg;
   force?: boolean;
   create?: boolean;
@@ -75,6 +77,8 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     inputBlock,
     before,
     after,
+    adopt,
+    updateOnly,
     mode,
     force,
     validateCmd,
@@ -297,6 +301,14 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     return { status: "removed", removalStats: stats, originalContent };
   }
 
+  if (updateOnly && !ctx.fileExists) {
+    throw new Error(`--create false: target file does not exist: ${file}`);
+  }
+
+  if (updateOnly && !lines.some((line) => stripTagsForMatching(line.trim()) === opener)) {
+    throw new Error(`--create false: managed block ${JSON.stringify(opener)} not found in ${file}`);
+  }
+
   const blockExists = fileContent.includes(opener);
   const wouldChange = blockWouldChange(
     fileContent,
@@ -329,6 +341,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     inputBlock: processedInputBlock,
     before: before === true ? undefined : before,
     after: after === true ? undefined : after,
+    adopt,
     appendNewline,
     additive,
     additiveBefore: parsedAdditiveBefore,

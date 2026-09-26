@@ -9,6 +9,7 @@ export interface ParseOptions {
   inputBlock: string;
   before?: RegExp | boolean;
   after?: RegExp | boolean;
+  adopt?: RegExp;
   appendNewline?: boolean;
   additive?: boolean;
   additiveBefore?: RegExp | "EOB" | "EOF" | "BOF";
@@ -27,6 +28,7 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
     inputBlock,
     before,
     after,
+    adopt,
     appendNewline,
     additive,
     additiveBefore,
@@ -52,6 +54,21 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
   const inputLines = inputBlock.split("\n");
   const outputOpener = actualOpener || opener;
   const outputCloser = actualCloser || closer;
+
+  // Adoption is a one-time placement policy: an existing named block is
+  // updated by the normal parser even if its old content no longer matches.
+  if (adopt && !lines.some((line) => stripTagsForMatching(line.trim()) === opener)) {
+    const index = lines.findIndex((line) => {
+      adopt.lastIndex = 0;
+      return adopt.test(line);
+    });
+    if (index < 0) throw new Error(`--adopt: no line matches ${adopt} in target file`);
+    const body = sourceLine
+      ? [outputOpener, sourceLine, ...inputBlock.split("\n"), outputCloser]
+      : [outputOpener, ...inputBlock.split("\n"), outputCloser];
+    lines.splice(index, 1, ...body);
+    return { outputs: lines, matched: index, opened: undefined };
+  }
 
   const isOpener = (line: string) => {
     return stripTagsForMatching(line.trim()) === opener;

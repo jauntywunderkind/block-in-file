@@ -120,6 +120,10 @@ const command = define<{
 
     const before = configExt.before ? new RegExp(configExt.before) : undefined;
     const after = configExt.after ? new RegExp(configExt.after) : undefined;
+    if (configExt.adopt !== undefined && (before || after || configExt.anchor)) {
+      throw new Error("--adopt cannot be combined with --before, --after, or --anchor");
+    }
+    const adopt = configExt.adopt !== undefined ? new RegExp(configExt.adopt) : undefined;
 
     const results: ProcessResult[] = [];
 
@@ -146,6 +150,8 @@ const command = define<{
         closer,
         before,
         after,
+        adopt,
+        updateOnly: configExt.create === false,
         mode: configExt.mode,
         force: configExt.force,
         create: configExt.create === true || configExt.create === "file",

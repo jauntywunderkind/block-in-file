@@ -32,6 +32,7 @@ export interface ConfigExtension {
   create?: CreateArg;
   before?: string;
   after?: string;
+  adopt?: string;
   diff?: string;
   backup?: string[];
   backupDir?: string;
@@ -112,10 +113,16 @@ export default function config() {
         short: "a",
         description: "Insert block after matching line (regex or EOF for end of file)",
       });
+      ctx.addGlobalOption("adopt", {
+        type: "string",
+        description:
+          "Wrap the first line matching REGEX in this block; update it if already managed",
+      });
       ctx.addGlobalOption("create", {
         type: "string",
         short: "C",
-        description: "Create file or block if missing (file, block, true, false)",
+        description:
+          "Create missing file/block: file, block (default), true (both), false (neither; update only)",
         default: "block",
       });
       ctx.addGlobalOption("diff", {
@@ -324,6 +331,7 @@ export default function config() {
         create,
         before: ctx.values.before as string | undefined,
         after: ctx.values.after as string | undefined,
+        adopt: ctx.values.adopt as string | undefined,
         diff: ctx.values.diff as string | undefined,
         backup: backupValue,
         backupDir: ctx.values["backup-dir"] as string | undefined,

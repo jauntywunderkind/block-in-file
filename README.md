@@ -132,6 +132,15 @@ header content
 
 hello, world</code></pre> |
 | Read a block back with `--read` (markers and provenance excluded, byte-exact; exits 1 when the block is missing). `diff <(block-in-file --read -n deploy hello-world.txt) deploy.txt` is a drift check against the source the block was installed from. | `block-in-file hello-world.txt --name deploy --read` | none | <pre><code>deploy=true</code></pre> | unchanged |
+| Adopt an existing row without leaving an active duplicate; later runs update the named block. | `block-in-file sources.list --name apt-uri --comment '#' --adopt '^deb ' --mode ensure` | `deb https://example.org stable main` | <pre><code># apt-uri start
+
+# source: &lt;STDIN&gt;
+
+deb https://example.org stable main
+
+# apt-uri end</code></pre> | Same content on rerun leaves the file unchanged; `--read` prints the row. |
+
+| Update only; fail without writing when the named block or file is missing. | `block-in-file sources.list --name apt-uri --create false --mode ensure` | `deb https://example.org stable main` | existing block updated | Missing block or file: nonzero exit, no write. |
 
 ## Full Usage
 
@@ -149,7 +158,8 @@ hello, world</code></pre> |
 | `--output`               | `-o`    | `[output]`                | Output file, or `-` for stdout, or `--` for no output, or `---` for overwriting existing file (default: `---`)                                                                                                                                                               |
 | `--before`               | `-b`    | `<before>`                | Insert block before matching line (regex or `BOF` for beginning of file)                                                                                                                                                                                                     |
 | `--after`                | `-a`    | `<after>`                 | Insert block after matching line (regex or `EOF` for end of file)                                                                                                                                                                                                            |
-| `--create`               | `-C`    | `<create>`                | Create file or block if missing (`file`, `block`, `true`, `false`)                                                                                                                                                                                                           |
+| `--adopt`                | none    | `<regex>`                 | On first run replace the first matching line with a managed block in place; on subsequent runs update the named block. Error if no match; mutually exclusive with placement options `--before`, `--after`, `--anchor`.                                                       |
+| `--create`               | `-C`    | `<create>`                | `block` (default), `file`, and `true` retain legacy insertion behavior (`file`/`true` explicitly allow a missing file); `false`: update only, error if file or named block is absent.                                                                                        |
 | `--diff`                 | `-D`    | optional output file path | Print diff                                                                                                                                                                                                                                                                   |
 | `--backup`               | `-B`    | `<backup>`                | Create backup with suffix pattern (e.g. `foo`, `bak`)                                                                                                                                                                                                                        |
 | `--backup-dir`           | none    | `<backup-dir>`            | Directory to store backup files                                                                                                                                                                                                                                              |
@@ -198,6 +208,7 @@ OPTIONS:
   -b, --before <before>                                  Insert block before matching line (regex or BOF for beginning of file)
   -a, --after <after>                                    Insert block after matching line (regex or EOF for end of file)
   -C, --create <create>                                  Create file or block if missing (file, block, true, false)
+  --adopt <adopt>                                        Wrap the first line matching REGEX in this block; update it if already managed
   -D, --diff                                             Print diff (optional output file path)
   -B, --backup <backup>                                  Create backup with suffix pattern (e.g., 'foo', 'bak')
   --backup-dir <backup-dir>                              Directory to store backup files
