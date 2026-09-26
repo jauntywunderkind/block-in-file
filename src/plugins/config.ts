@@ -1,5 +1,6 @@
 import { plugin } from "gunshi/plugin";
 import { parseBackupOption, type BackupOptions } from "../backup.ts";
+import type { BlankLinesMode } from "../block-parser.ts";
 
 export const pluginId = "blockinfile:config" as const;
 export type PluginId = typeof pluginId;
@@ -46,6 +47,7 @@ export interface ConfigExtension {
   tempExtAtomic?: string;
   tempExtPrevalidate?: string;
   appendNewline?: boolean;
+  blankLines: BlankLinesMode;
   attributes?: string;
   removeAll?: string;
   remove?: string[];
@@ -176,6 +178,12 @@ export default function config() {
         type: "boolean",
         description: "Append blank line after block",
       });
+      ctx.addGlobalOption("blank-lines", {
+        type: "string",
+        description:
+          "Blank lines: keep (default), never, or separators (one before new EOF blocks)",
+        default: "keep",
+      });
       ctx.addGlobalOption("attributes", {
         type: "string",
         description: "Set file attributes using chattr syntax (e.g., '+i', '-i', '+a')",
@@ -231,7 +239,8 @@ export default function config() {
       });
       ctx.addGlobalOption("source-label", {
         type: "string",
-        description: "Override provenance value (# source: TEXT); none/false omit it (case-sensitive)",
+        description:
+          "Override provenance value (# source: TEXT); none/false omit it (case-sensitive)",
       });
       ctx.addGlobalOption("additive", {
         type: "boolean",
@@ -309,6 +318,16 @@ export default function config() {
 
       const sourceAttributionValue = ctx.values["source-attribution"] as boolean | undefined;
       const sourceAttribution: boolean = sourceAttributionValue !== false;
+      const blankLinesValue = ctx.values["blank-lines"] as string;
+      if (
+        blankLinesValue !== "keep" &&
+        blankLinesValue !== "never" &&
+        blankLinesValue !== "separators"
+      ) {
+        throw new Error(
+          `--blank-lines must be keep, never, or separators (got ${JSON.stringify(blankLinesValue)})`,
+        );
+      }
 
       const anchorValue = ctx.values.anchor as string | undefined;
       let anchor: AnchorOptions | undefined = undefined;
@@ -350,6 +369,7 @@ export default function config() {
         tempExtAtomic: ctx.values["temp-ext-atomic"] as string | undefined,
         tempExtPrevalidate: ctx.values["temp-ext-prevalidate"] as string | undefined,
         appendNewline: ctx.values["append-newline"] as boolean | undefined,
+        blankLines: blankLinesValue,
         attributes: ctx.values.attributes as string | undefined,
         removeAll: ctx.values["remove-all"] as string | undefined,
         remove: ctx.values.remove as string[] | undefined,

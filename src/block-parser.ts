@@ -3,6 +3,13 @@ import { stripTagsForMatching } from "./tags/tags.ts";
 import type { AnchorInfo } from "./anchor.ts";
 import { findBlocksAndAnchors, calculateInsertPosition } from "./anchor.ts";
 
+export type BlankLinesMode = "keep" | "never" | "separators";
+
+export function blockInputLines(input: string, mode: BlankLinesMode): string[] {
+  const lines = input.split("\n");
+  return mode === "keep" ? lines : lines.filter((line) => line.trim() !== "");
+}
+
 export interface ParseOptions {
   opener: string;
   closer: string;
@@ -11,6 +18,7 @@ export interface ParseOptions {
   after?: RegExp | boolean;
   adopt?: RegExp;
   appendNewline?: boolean;
+  blankLines?: BlankLinesMode;
   additive?: boolean;
   additiveBefore?: RegExp | "EOB" | "EOF" | "BOF";
   additiveAfter?: RegExp | "EOB" | "EOF" | "BOF";
@@ -30,6 +38,7 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
     after,
     adopt,
     appendNewline,
+    blankLines = "keep",
     additive,
     additiveBefore,
     additiveAfter,
@@ -51,9 +60,22 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
   let blockStartIndex = -1;
   let blockEndIndex = -1;
 
-  const inputLines = inputBlock.split("\n");
+  const inputLines = blockInputLines(inputBlock, blankLines);
   const outputOpener = actualOpener || opener;
   const outputCloser = actualCloser || closer;
+
+  const separatedEofPosition = (position: number): number => {
+    // The last empty split element represents the file terminator, not a
+    // separator. Insert before it and leave precisely one empty line before
+    // the begin marker when actual content precedes the block.
+    if (fileContent.endsWith("\n") && position === outputs.length) position--;
+    if (blankLines !== "separators" || fileContent === "") return position;
+    while (position > 1 && outputs[position - 1] === "" && outputs[position - 2] === "") {
+      outputs.splice(--position, 1);
+    }
+    if (outputs[position - 1] !== "") outputs.splice(position++, 0, "");
+    return position;
+  };
 
   // Adoption is a one-time placement policy: an existing named block is
   // updated by the normal parser even if its old content no longer matches.
@@ -64,8 +86,8 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
     });
     if (index < 0) throw new Error(`--adopt: no line matches ${adopt} in target file`);
     const body = sourceLine
-      ? [outputOpener, sourceLine, ...inputBlock.split("\n"), outputCloser]
-      : [outputOpener, ...inputBlock.split("\n"), outputCloser];
+      ? [outputOpener, sourceLine, ...inputLines, outputCloser]
+      : [outputOpener, ...inputLines, outputCloser];
     lines.splice(index, 1, ...body);
     return { outputs: lines, matched: index, opened: undefined };
   }
@@ -164,9 +186,17 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
             newContentLines = [...blockContentLines, ...missingLines];
           }
 
-          pushBlock(newContentLines);
+          pushBlock(
+            blankLines === "keep"
+              ? newContentLines
+              : newContentLines.filter((line) => line.trim() !== ""),
+          );
         } else {
-          pushBlock(blockContentLines);
+          pushBlock(
+            blankLines === "keep"
+              ? blockContentLines
+              : blockContentLines.filter((line) => line.trim() !== ""),
+          );
         }
       } else {
         pushBlock(inputLines);
@@ -196,7 +226,15 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
   if (!done) {
     if (anchor && matched === -1 && !before && !after) {
       const existingBlocks = findBlocksAndAnchors(lines, opener, closer);
-      const insertPos = calculateInsertPosition(lines, anchor, existingBlocks);
+      let insertPos = calculateInsertPosition(lines, anchor, existingBlocks);
+      if (
+        anchor.type === "eof" &&
+        blankLines === "separators" &&
+        insertPos >= outputs.length - 1 &&
+        fileContent !== ""
+      ) {
+        insertPos = separatedEofPosition(insertPos);
+      }
       const blockLines = sourceLine
         ? [outputOpener, sourceLine, ...inputLines, outputCloser]
         : [outputOpener, ...inputLines, outputCloser];
@@ -206,10 +244,12 @@ export function parseAndInsertBlock(fileContent: string, opts: ParseOptions): Pa
       }
       matched = insertPos;
     } else {
-      if (matched === -1) {
-        matched = i;
-      }
-      const insertOffset = matched + (after ? 1 : 0);
+      const unanchored = matched === -1 && !before && !after;
+      if (matched === -1) matched = i;
+      let insertOffset =
+        unanchored && fileContent !== "" ? outputs.length : matched + (after ? 1 : 0);
+      // The final empty split element is the file's terminating newline.
+      if (unanchored && fileContent !== "") insertOffset = separatedEofPosition(insertOffset);
       const blockLines = sourceLine
         ? [outputOpener, sourceLine, ...inputLines, outputCloser]
         : [outputOpener, ...inputLines, outputCloser];

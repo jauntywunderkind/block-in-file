@@ -119,7 +119,9 @@ describe("CLI adoption and update-only creation", () => {
       expect(await readFile(file, "utf8")).toContain("# source: <STDIN>");
       expect((await cli(args, "value\n")).code).toBe(0);
       expect(await readFile(file, "utf8")).toBe("head\n# row start\nvalue\n# row end\n");
-      expect((await cli([file, "--name", "row", "--read", "--source-label", label])).stdout).toBe("value");
+      expect((await cli([file, "--name", "row", "--read", "--source-label", label])).stdout).toBe(
+        "value",
+      );
     }
     const file = join(dir, "capitalized");
     await writeFile(file, "");

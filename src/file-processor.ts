@@ -3,7 +3,7 @@ import type { LoggerExtension } from "./plugins/logger.ts";
 import type { IOExtension } from "./plugins/io.ts";
 import type { DiffExtension } from "./plugins/diff.ts";
 import type { BackupOptions } from "./backup.ts";
-import { parseAndInsertBlock } from "./block-parser.ts";
+import { blockInputLines, parseAndInsertBlock, type BlankLinesMode } from "./block-parser.ts";
 import { formatOutputs } from "./output.ts";
 import { detectBlockState, shouldSkipForMode } from "./mode-handler.ts";
 import { runValidation } from "./validation.ts";
@@ -42,6 +42,7 @@ export interface ProcessContext {
   tempExtAtomic?: string;
   tempExtPrevalidate?: string;
   appendNewline?: boolean;
+  blankLines?: BlankLinesMode;
   attributes?: string;
   removeAll?: string;
   remove?: string[];
@@ -52,6 +53,7 @@ export interface ProcessContext {
   sourceAttribution?: boolean;
   sourceLine?: string;
   sourceLinePrefix?: string;
+  sourceLabelExplicit?: boolean;
   additive?: boolean;
   additiveBefore?: string;
   additiveAfter?: string;
@@ -94,6 +96,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     tempExtAtomic,
     tempExtPrevalidate,
     appendNewline,
+    blankLines = "keep",
     attributes,
     removeAll,
     remove = [],
@@ -103,6 +106,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     envsubstExclude,
     sourceLine,
     sourceLinePrefix,
+    sourceLabelExplicit,
     additive,
     additiveBefore,
     additiveAfter,
@@ -317,6 +321,8 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     closer,
     sourceLinePrefix,
     sourceLine,
+    blankLines,
+    sourceLabelExplicit,
   );
   const state = detectBlockState(ctx.fileExists, blockExists, wouldChange);
 
@@ -344,6 +350,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     after: after === true ? undefined : after,
     adopt,
     appendNewline,
+    blankLines,
     additive,
     additiveBefore: parsedAdditiveBefore,
     additiveAfter: parsedAdditiveAfter,
@@ -414,6 +421,8 @@ function blockWouldChange(
   closer: string,
   sourceLinePrefix?: string,
   sourceLine?: string,
+  blankLines: BlankLinesMode = "keep",
+  sourceLabelExplicit = false,
 ): boolean {
   const openerIndex = fileContent.indexOf(opener);
   if (openerIndex === -1) {
@@ -427,14 +436,27 @@ function blockWouldChange(
 
   const blockContent = fileContent.slice(openerIndex + opener.length, closerIndex);
   const lines = blockContent.split("\n");
+  const bodyLines = lines.slice(1, -1);
   const content = lines
     .slice(1)
     .filter((line) => !sourceLinePrefix || !line.startsWith(sourceLinePrefix))
     .join("\n");
 
-  const existingSources = lines.slice(1).filter((line) => sourceLinePrefix && line.startsWith(sourceLinePrefix));
+  const existingSources = lines
+    .slice(1)
+    .filter((line) => sourceLinePrefix && line.startsWith(sourceLinePrefix));
   return (
-    content.trim() !== inputBlock.trim() ||
-    (sourceLine === undefined ? existingSources.length !== 0 : existingSources.length !== 1 || existingSources[0] !== sourceLine)
+    (blankLines === "keep"
+      ? content.trim() !== inputBlock.trim()
+      : content
+          .split("\n")
+          .filter((line) => line.trim() !== "")
+          .join("\n") !== blockInputLines(inputBlock, blankLines).join("\n") ||
+        bodyLines.some((line) => line.trim() === "")) ||
+    (sourceLine === undefined
+      ? existingSources.length !== 0
+      : existingSources.length === 0 && !sourceLabelExplicit
+        ? false
+        : existingSources.length !== 1 || existingSources[0] !== sourceLine)
   );
 }

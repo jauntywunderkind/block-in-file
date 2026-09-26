@@ -167,6 +167,7 @@ const command = define<{
         tempExtAtomic: configExt.tempExtAtomic,
         tempExtPrevalidate: configExt.tempExtPrevalidate,
         appendNewline: configExt.appendNewline,
+        blankLines: configExt.blankLines,
         attributes: configExt.attributes,
         removeAll: configExt.removeAll,
         remove: configExt.remove,
@@ -174,10 +175,14 @@ const command = define<{
         removeOrphans: configExt.removeOrphans,
         envsubst: configExt.envsubst,
         envsubstExclude: configExt.envsubstExclude,
-        sourceLine: configExt.sourceAttribution && configExt.sourceLabel !== "none" && configExt.sourceLabel !== "false"
-          ? `${configExt.comment} source: ${configExt.sourceLabel ?? (configExt.input === "-" ? "<STDIN>" : configExt.input)}`
-          : undefined,
+        sourceLine:
+          configExt.sourceAttribution &&
+          configExt.sourceLabel !== "none" &&
+          configExt.sourceLabel !== "false"
+            ? `${configExt.comment} source: ${configExt.sourceLabel ?? (configExt.input === "-" ? "<STDIN>" : configExt.input)}`
+            : undefined,
         sourceLinePrefix: `${configExt.comment} source:`,
+        sourceLabelExplicit: configExt.sourceLabel !== undefined,
         additive: configExt.additive,
         additiveBefore: configExt.additiveBefore,
         additiveAfter: configExt.additiveAfter,
