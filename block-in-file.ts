@@ -174,7 +174,7 @@ const command = define<{
         removeOrphans: configExt.removeOrphans,
         envsubst: configExt.envsubst,
         envsubstExclude: configExt.envsubstExclude,
-        sourceLine: configExt.sourceAttribution
+        sourceLine: configExt.sourceAttribution && configExt.sourceLabel !== "none" && configExt.sourceLabel !== "false"
           ? `${configExt.comment} source: ${configExt.sourceLabel ?? (configExt.input === "-" ? "<STDIN>" : configExt.input)}`
           : undefined,
         sourceLinePrefix: `${configExt.comment} source:`,

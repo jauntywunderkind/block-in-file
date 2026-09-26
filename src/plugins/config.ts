@@ -231,7 +231,7 @@ export default function config() {
       });
       ctx.addGlobalOption("source-label", {
         type: "string",
-        description: "Override provenance value (# source: TEXT); use a path or glob identifying the manager",
+        description: "Override provenance value (# source: TEXT); none/false omit it (case-sensitive)",
       });
       ctx.addGlobalOption("additive", {
         type: "boolean",

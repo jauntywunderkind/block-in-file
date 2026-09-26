@@ -108,6 +108,25 @@ describe("CLI adoption and update-only creation", () => {
     expect((await stat(file)).mtimeMs).toBe(mtime);
   });
 
+  it("suppresses provenance with exact none/false on insert and on update, including tagged markers", async () => {
+    for (const label of ["none", "false"]) {
+      const file = join(dir, label);
+      await writeFile(file, "head\n");
+      const args = [file, "--name", "row", "--source-label", label, "--mode", "ensure"];
+      expect((await cli(args, "value\n")).code).toBe(0);
+      expect(await readFile(file, "utf8")).toBe("head\n# row start\nvalue\n# row end\n");
+      expect((await cli([file, "--name", "row", "--tag-mode", "merge"], "value\n")).code).toBe(0);
+      expect(await readFile(file, "utf8")).toContain("# source: <STDIN>");
+      expect((await cli(args, "value\n")).code).toBe(0);
+      expect(await readFile(file, "utf8")).toBe("head\n# row start\nvalue\n# row end\n");
+      expect((await cli([file, "--name", "row", "--read", "--source-label", label])).stdout).toBe("value");
+    }
+    const file = join(dir, "capitalized");
+    await writeFile(file, "");
+    expect((await cli([file, "--source-label", "None"], "value\n")).code).toBe(0);
+    expect(await readFile(file, "utf8")).toContain("# source: None");
+  });
+
   it("gates missing blocks and files with --create false, including mode only", async () => {
     const file = join(dir, "source.list");
     await writeFile(file, "existing\n");
