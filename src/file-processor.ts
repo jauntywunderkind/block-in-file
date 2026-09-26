@@ -316,6 +316,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     opener,
     closer,
     sourceLinePrefix,
+    sourceLine,
   );
   const state = detectBlockState(ctx.fileExists, blockExists, wouldChange);
 
@@ -349,6 +350,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     actualOpener: finalTags.length > 0 ? actualOpener : undefined,
     anchor,
     sourceLine,
+    sourceLinePrefix,
   });
 
   const outputText = formatOutputs(result.outputs, dos);
@@ -411,6 +413,7 @@ function blockWouldChange(
   opener: string,
   closer: string,
   sourceLinePrefix?: string,
+  sourceLine?: string,
 ): boolean {
   const openerIndex = fileContent.indexOf(opener);
   if (openerIndex === -1) {
@@ -429,5 +432,9 @@ function blockWouldChange(
     .filter((line) => !sourceLinePrefix || !line.startsWith(sourceLinePrefix))
     .join("\n");
 
-  return content.trim() !== inputBlock.trim();
+  const existingSources = lines.slice(1).filter((line) => sourceLinePrefix && line.startsWith(sourceLinePrefix));
+  return (
+    content.trim() !== inputBlock.trim() ||
+    (sourceLine === undefined ? existingSources.length !== 0 : existingSources.length !== 1 || existingSources[0] !== sourceLine)
+  );
 }

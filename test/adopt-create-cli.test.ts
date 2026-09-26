@@ -89,6 +89,25 @@ describe("CLI adoption and update-only creation", () => {
     expect(await readFile(file, "utf8")).toBe("first\nlast\n");
   });
 
+  it("sets an opaque provenance label on insert and replaces it in ensure mode on update", async () => {
+    const file = join(dir, "source.list");
+    await writeFile(file, "old\n");
+    const args = [file, "--name", "row", "--mode", "ensure"];
+    expect((await cli(args, "row\n")).code).toBe(0);
+    expect(await readFile(file, "utf8")).toContain("# source: <STDIN>");
+    const labelled = [...args, "--source-label", "/etc/apt/*.sources: scheme policy"];
+    expect((await cli(labelled, "row\n")).code).toBe(0);
+    const content = await readFile(file, "utf8");
+    expect(content).toContain("# source: /etc/apt/*.sources: scheme policy");
+    expect(content).not.toContain("# source: <STDIN>");
+    expect(content.match(/# source:/g)).toHaveLength(1);
+    const read = await cli([file, "--name", "row", "--read", "--source-label", "ignored"]);
+    expect(read.stdout).toBe("row");
+    const mtime = (await stat(file)).mtimeMs;
+    expect((await cli(labelled, "row\n")).code).toBe(0);
+    expect((await stat(file)).mtimeMs).toBe(mtime);
+  });
+
   it("gates missing blocks and files with --create false, including mode only", async () => {
     const file = join(dir, "source.list");
     await writeFile(file, "existing\n");

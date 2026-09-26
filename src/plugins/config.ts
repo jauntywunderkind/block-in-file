@@ -27,6 +27,7 @@ export interface ConfigExtension {
   envsubst?: EnvsubstMode;
   envsubstExclude?: RegExp;
   sourceAttribution: boolean;
+  sourceLabel?: string;
   input: string;
   output: string;
   create?: CreateArg;
@@ -228,6 +229,10 @@ export default function config() {
           return true;
         },
       });
+      ctx.addGlobalOption("source-label", {
+        type: "string",
+        description: "Override provenance value (# source: TEXT); use a path or glob identifying the manager",
+      });
       ctx.addGlobalOption("additive", {
         type: "boolean",
         description:
@@ -326,6 +331,7 @@ export default function config() {
         envsubst,
         envsubstExclude,
         sourceAttribution,
+        sourceLabel: ctx.values["source-label"] as string | undefined,
         input: ctx.values.input as string,
         output: ctx.values.output as string,
         create,

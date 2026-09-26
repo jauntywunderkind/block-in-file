@@ -175,9 +175,9 @@ const command = define<{
         envsubst: configExt.envsubst,
         envsubstExclude: configExt.envsubstExclude,
         sourceLine: configExt.sourceAttribution
-          ? `${configExt.comment} source: ${configExt.input === "-" ? "<STDIN>" : configExt.input}`
+          ? `${configExt.comment} source: ${configExt.sourceLabel ?? (configExt.input === "-" ? "<STDIN>" : configExt.input)}`
           : undefined,
-        sourceLinePrefix: configExt.sourceAttribution ? `${configExt.comment} source:` : undefined,
+        sourceLinePrefix: `${configExt.comment} source:`,
         additive: configExt.additive,
         additiveBefore: configExt.additiveBefore,
         additiveAfter: configExt.additiveAfter,
