@@ -252,6 +252,36 @@ describe("CLI", () => {
       expect(result).toBe("# keep start\nfour\n# keep end\n");
     });
 
+    it("removes blocks written with a custom comment prefix", async () => {
+      // Regression: the removal path derived the comment prefix from the
+      // opener with a #-and-// only sniff, so any other prefix (Lisp ";;"
+      // among them) silently matched nothing and --remove/--remove-match
+      // no-opped while reporting success.
+      const targetFile = path.join(tempDir, "target.txt");
+      await fs.writeFile(
+        targetFile,
+        ";; kanata/10-caps.base.kbd start\n;; source: caps.kbd\ncaps x\n\n;; kanata/10-caps.base.kbd end\n;; keep start\nfour\n;; keep end\n",
+      );
+
+      runCli(`--comment ';;' --remove-match '^kanata/' ${targetFile}`);
+
+      const result = await fs.readFile(targetFile, "utf-8");
+      expect(result).toBe(";; keep start\nfour\n;; keep end\n");
+    });
+
+    it("removes a named block written with a custom comment prefix", async () => {
+      const targetFile = path.join(tempDir, "target.txt");
+      await fs.writeFile(
+        targetFile,
+        ";; vicinae start\ninclude one\n;; vicinae end\n;; keep start\ntwo\n;; keep end\n",
+      );
+
+      runCli(`--comment ';;' --remove vicinae ${targetFile}`);
+
+      const result = await fs.readFile(targetFile, "utf-8");
+      expect(result).toBe(";; keep start\ntwo\n;; keep end\n");
+    });
+
     it("does not read stdin for removal-only invocations", async () => {
       const targetFile = path.join(tempDir, "target.txt");
       await fs.writeFile(

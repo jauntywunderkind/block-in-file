@@ -173,6 +173,7 @@ const command = define<{
         remove: configExt.remove,
         removeMatch: configExt.removeMatch,
         removeOrphans: configExt.removeOrphans,
+        comment: configExt.comment,
         envsubst: configExt.envsubst,
         envsubstExclude: configExt.envsubstExclude,
         sourceLine:

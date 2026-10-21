@@ -48,6 +48,7 @@ export interface ProcessContext {
   remove?: string[];
   removeMatch?: string[];
   removeOrphans?: boolean;
+  comment?: string;
   envsubst?: EnvsubstMode;
   envsubstExclude?: RegExp;
   sourceAttribution?: boolean;
@@ -235,8 +236,11 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
       logger.debug(`Removing blocks matching: ${removeMatch.join(", ")}`);
     }
 
+    // Prefer the configured comment prefix; the opener sniff only knows #
+    // and //, so custom prefixes (e.g. Lisp ";;") silently matched nothing
+    // and removal no-opped.
     const commentMatch = opener.match(/^(#\s*|\/\/\s*)/) || opener.match(/^(\/\/\s*)/);
-    const comment = commentMatch ? commentMatch[1].trimEnd() : "";
+    const comment = ctx.comment ?? (commentMatch ? commentMatch[1] : "");
     const openerParts = opener.split(/\s+/);
     const closerParts = closer.split(/\s+/);
     const markerStart = openerParts[openerParts.length - 1] || "start";
