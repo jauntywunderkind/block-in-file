@@ -3,6 +3,10 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 import { execSync, spawn } from "node:child_process";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
 
 describe("CLI", () => {
   let tempDir: string;
@@ -73,7 +77,7 @@ describe("CLI", () => {
 
     it("shows version with --version", () => {
       const output = runCli("--version");
-      expect(output).toContain("1.0.0");
+      expect(output).toContain(version);
     });
   });
 
