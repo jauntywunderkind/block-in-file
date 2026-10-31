@@ -8,16 +8,22 @@ technique to programmatically ongoingly update just one part of a file, leaving 
 # Installation
 
 ```
-deno install --allow-read --allow-write --allow-net https://raw.githubusercontent.com/jauntywunderkind/block-in-file/main/block-in-file.ts
-PATH="$HOME/.deno/bin:$PATH"
+npm install -g block-in-file
 ```
 
-Alternatively,
+or with pnpm:
+
+```
+pnpm add -g block-in-file
+```
+
+From a source checkout (the TypeScript runs directly under tsx):
 
 ```
 git clone https://github.com/jauntywunderkind/block-in-file
 cd block-in-file
-deno task install
+pnpm install
+pnpm dev
 ```
 
 # Examples

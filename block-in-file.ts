@@ -231,7 +231,8 @@ const command = define<{
 
 cli(process.argv.slice(2), command, {
   name: "block-in-file",
-  version: "1.0.0",
+  // keep in sync with package.json at release time
+  version: "1.1.0",
   plugins: [logger(), config(), io(), diff()],
   // Read mode must own stdout byte-exactly (it feeds `diff <(...)`), so the
   // gunshi header banner is suppressed for it. Otherwise replicate the
