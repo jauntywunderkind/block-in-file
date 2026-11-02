@@ -54,6 +54,10 @@ export interface ConfigExtension {
   removeMatch?: string[];
   removeOrphans?: boolean;
   read?: boolean;
+  commentOut?: boolean;
+  uncomment?: boolean;
+  commented?: boolean;
+  readUncommented?: boolean;
   additive?: boolean;
   additiveBefore?: string;
   additiveAfter?: string;
@@ -242,6 +246,25 @@ export default function config() {
         description:
           "Override provenance value (# source: TEXT); none/false omit it (case-sensitive)",
       });
+      ctx.addGlobalOption("comment-out", {
+        type: "boolean",
+        description:
+          "Comment out the named block's body in place (terminal op: no input read; records [commented])",
+      });
+      ctx.addGlobalOption("uncomment", {
+        type: "boolean",
+        description:
+          "Restore a commented-out block in place (terminal op: strips one comment layer; removes [commented])",
+      });
+      ctx.addGlobalOption("commented", {
+        type: "boolean",
+        description:
+          "Emit the block body commented out (creates or flips to [commented]; updates of a commented block stay commented)",
+      });
+      ctx.addGlobalOption("read-uncommented", {
+        type: "boolean",
+        description: "Read mode: strip one comment prefix from each body line (implies --read)",
+      });
       ctx.addGlobalOption("additive", {
         type: "boolean",
         description:
@@ -376,6 +399,10 @@ export default function config() {
         removeMatch: ctx.values["remove-match"] as string[] | undefined,
         removeOrphans: ctx.values["remove-orphans"] as boolean | undefined,
         read: ctx.values.read as boolean | undefined,
+        commentOut: ctx.values["comment-out"] as boolean | undefined,
+        uncomment: ctx.values.uncomment as boolean | undefined,
+        commented: ctx.values.commented as boolean | undefined,
+        readUncommented: ctx.values["read-uncommented"] as boolean | undefined,
         additive: ctx.values.additive as boolean | undefined,
         additiveBefore: ctx.values["additive-before"] as string | undefined,
         additiveAfter: ctx.values["additive-after"] as string | undefined,

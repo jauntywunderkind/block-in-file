@@ -148,6 +148,36 @@ deb https://example.org stable main
 
 | Update only; fail without writing when the named block or file is missing. | `block-in-file sources.list --name apt-uri --create false --mode ensure` | `deb https://example.org stable main` | existing block updated | Missing block or file: nonzero exit, no write. |
 
+| Comment a block out in place, keeping it managed and addressable. | `block-in-file hello-world.txt --name deploy --comment-out` | none | <pre><code># deploy start
+
+deploy=true
+
+# deploy end</code></pre> | <pre><code># deploy start [commented]
+
+# deploy=true
+
+# deploy end</code></pre> |
+
+| Restore it byte-for-byte later. | `block-in-file hello-world.txt --name deploy --uncomment` | none | <pre><code># deploy start [commented]
+
+# deploy=true
+
+# deploy end</code></pre> | original content restored, `[commented]` removed |
+
+| Read the effective content of a commented block. | `block-in-file hello-world.txt --name deploy --read-uncommented` | none | <pre><code># deploy start [commented]
+
+# deploy=true
+
+# deploy end</code></pre> | prints `deploy=true`; plain `--read` prints `# deploy=true` verbatim |
+
+| Install a block already commented out. | `block-in-file hello-world.txt --name deploy --commented` | `deploy=true` | <pre><code>hello, world</code></pre> | <pre><code>hello, world
+
+# deploy start [commented]
+
+# deploy=true
+
+# deploy end</code></pre> |
+
 ## Full Usage
 
 | Flag                     | Aliases | Arguments                 | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -184,6 +214,10 @@ deb https://example.org stable main
 | `--remove-match`         | none    | `<regex>`                 | Remove all blocks whose names match this regex; may be repeated                                                                                                                                                                                                                                                                                                                                                                                              |
 | `--remove-orphans`       | none    | none                      | Remove orphaned blocks (blocks with empty content)                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `--read`                 | none    | none                      | Read mode: print the named block's contents (markers and provenance excluded) instead of writing; exits 1 when no block is found. Output is byte-exact, so `diff <(block-in-file --read -n NAME FILE) SOURCE` is a drift check against the file the block was installed from                                                                                                                                                                                 |
+| `--comment-out`          | none    | none                      | Terminal op: comment the named block's body in place (one comment prefix per line, indent-preserving) and record `[commented]` on its opener. No input read; idempotent; exits 1 when the block is missing. See [Commented-out blocks](#commented-out-blocks)                                                                                                                                                                                                |
+| `--uncomment`            | none    | none                      | Terminal op: restore a commented block in place (strip one comment layer per line, remove `[commented]`). No input read; idempotent; exits 1 when the block is missing                                                                                                                                                                                                                                                                                       |
+| `--commented`            | none    | none                      | Emit the block body commented out on insert/update; creates or flips the block to `[commented]`. Updates of an already-commented block stay commented even without this flag                                                                                                                                                                                                                                                                                 |
+| `--read-uncommented`     | none    | none                      | Read mode (implies `--read`): strip one comment prefix from each body line that carries it, returning the effective content; `--read` without it stays byte-exact verbatim                                                                                                                                                                                                                                                                                   |
 | `--source-label`         | none    | `<text>`                  | Set the opaque provenance value (`# source: <text>` with default comment `#`). Unset: `<STDIN>` for stdin, input filename for `-i FILE`. Exact lowercase `none` or `false` omit the line, including on update; reserved values are case-sensitive (`None` is an ordinary label). A path or glob materially identifying the managing source is encouraged, e.g. `files/apt-srctools/apt-src-scheme.ts` or `/etc/apt/sources.list.d/*.sources: scheme policy`. |
 | `--envsubst`             | none    | `[mode]`                  | Enable environment variable substitution. No value or `true`/`recursive` = recursive; `non-recursive` = single-pass; `false` = off (default: off)                                                                                                                                                                                                                                                                                                            |
 | `--additive`             | none    | none                      | Ensure all input lines exist in block; add missing lines instead of replacing                                                                                                                                                                                                                                                                                                                                                                                |
@@ -237,6 +271,14 @@ OPTIONS:
   --read                                                 Read mode: print the named block's contents (markers and
                                                          provenance excluded) instead of writing; exits 1 when no
                                                          block is found
+  --comment-out                                          Comment out the named block's body in place (terminal op:
+                                                          no input read; records [commented])
+  --uncomment                                            Restore a commented-out block in place (terminal op:
+                                                          strips one comment layer; removes [commented])
+  --commented                                            Emit the block body commented out (creates or flips to
+                                                          [commented]; updates of a commented block stay commented)
+  --read-uncommented                                     Read mode: strip one comment prefix from each body line
+                                                          (implies --read)
   --source-label <source-label>                          Override provenance value (# source: TEXT); use a path or glob identifying the manager
   --envsubst [mode]                                      Enable environment variable substitution. No value or true/recursive = recursive; non-recursive = single-pass; false = off (default: off)
   --additive                                             Additive mode: ensure all input lines are in block, adding missing lines instead of replacing
@@ -282,3 +324,32 @@ The `--tag-mode` option controls how existing tags are handled when updating blo
     the result is `[timestamp:...]` (the `[foo]` tag is removed).
 
 This allows you to maintain custom metadata on blocks while updating them programmatically.
+
+## Commented-out blocks
+
+A managed block can be made inert — its body commented out — without losing it: the
+markers stay active so the block remains addressable, and a `[commented]` tag on the
+opener records the state. Presence of the tag is the state; the tool owns the
+`commented` tag name, and it is exempt from `--tag-mode`.
+
+- **`--comment-out` / `--uncomment`** are terminal operations like `--remove`: they
+  transform the existing named block in place, read no input, and exit 1 when the
+  block is missing. Commenting prefixes each body line with the comment character
+  (`--comment`, default `#`) after any indentation; blank lines and the provenance
+  line are untouched. Uncommenting strips exactly one prefix layer per line, so
+  `--comment-out` then `--uncomment` restores the original byte-for-byte, including
+  body lines that were genuine comments (`# note` → `# # note` → `# note`).
+- **Updates respect the recorded state**: re-running the insert command that manages
+  a commented block rewrites the body from the new input _stayed commented_ — a
+  running recipe does not silently re-enable a disabled block. State changes only
+  through the explicit operations. `--commented` forces commented emission, and is
+  how you install a block already commented out.
+- **Reads**: `--read` stays byte-exact verbatim, so the `diff <(...)` drift check
+  against an uncommented source fails while the block is disabled — correct signal.
+  `--read-uncommented` strips one comment prefix from each body line that carries
+  it, returning the effective content.
+- `--additive` combined with commented emission (the flag or a commented block) is
+  an error rather than a silently wrong merge.
+- Ambiguity is inherent: a hand-added bare comment line inside a commented block is
+  indistinguishable from a commented content line and will be stripped on
+  `--uncomment`. Re-running the managing recipe is the recovery path.

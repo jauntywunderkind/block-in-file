@@ -10,6 +10,7 @@ import io from "./src/plugins/io.ts";
 import diff from "./src/plugins/diff.ts";
 import { processFile, type ProcessContext, type ProcessResult } from "./src/file-processor.ts";
 import { readBlocks } from "./src/block-reader.ts";
+import { stripCommentLayer } from "./src/block-commenter.ts";
 
 const command = define<{
   extensions: Record<typeof configId, ConfigExtension> &
@@ -28,7 +29,10 @@ const command = define<{
 
     let files = (positionals as string[]) || [];
 
-    if (configExt.read && files.length === 0) {
+    const readMode = Boolean(configExt.read || configExt.readUncommented);
+    const flipping = Boolean(configExt.commentOut) || Boolean(configExt.uncomment);
+
+    if (readMode && files.length === 0) {
       throw new Error("Need file argument for read mode");
     }
 
@@ -37,7 +41,7 @@ const command = define<{
       logger.debug(`Output target: ${configExt.output}`);
     }
 
-    if (!configExt.read && files.length === 0 && !configExt.diff) {
+    if (!readMode && files.length === 0 && !configExt.diff) {
       if (configExt.output === "---" || !configExt.output) {
         throw new Error("Need file argument or output target");
       }
@@ -55,6 +59,10 @@ const command = define<{
       throw new Error("Need file argument for diff mode");
     }
 
+    if (flipping && files.length === 0) {
+      throw new Error("Need file argument for comment-out/uncomment");
+    }
+
     if (configExt.debug) {
       logger.debug(`Processing ${files.length} file(s)`);
     }
@@ -62,7 +70,7 @@ const command = define<{
     const opener = `${configExt.comment} ${configExt.name} ${configExt.markerStart}`;
     const closer = `${configExt.comment} ${configExt.name} ${configExt.markerEnd}`;
 
-    if (configExt.read) {
+    if (readMode) {
       if (files.length === 0) {
         throw new Error("Need file argument for read mode");
       }
@@ -90,7 +98,11 @@ const command = define<{
               `read: block '${configExt.name}' in ${file} lines ${block.startLine}-${block.endLine || "EOF"}`,
             );
           }
-          const payload = block.body.join("\n");
+          const payload = (
+            configExt.readUncommented
+              ? block.body.map((line) => stripCommentLayer(line, configExt.comment))
+              : block.body
+          ).join("\n");
           // Separate consecutive payloads when the previous one did not
           // already end with a newline, so stdout stays byte-exact per block.
           if (found > 0 && !trailingNewline) process.stdout.write("\n");
@@ -103,18 +115,18 @@ const command = define<{
       return;
     }
 
-    // Removal invocations are terminal in processFile: they never insert,
-    // so block input goes unused. Reading it anyway would block forever on
-    // the -i stdin default whenever a scripted removal runs with an
-    // interactive (never-EOF) stdin — as compfuzor's config processor
+    // Removal and comment flips are terminal in processFile: they never
+    // insert, so block input goes unused. Reading it anyway would block
+    // forever on the -i stdin default whenever a scripted removal runs with
+    // an interactive (never-EOF) stdin — as compfuzor's config processor
     // probe does from a user's terminal.
     const removing =
       Boolean(configExt.removeAll) ||
       Boolean(configExt.remove?.length) ||
       Boolean(configExt.removeMatch?.length) ||
       Boolean(configExt.removeOrphans);
-    const inputBlock = removing ? "" : await io.readFile(configExt.input);
-    if (configExt.debug && !removing) {
+    const inputBlock = removing || flipping ? "" : await io.readFile(configExt.input);
+    if (configExt.debug && !removing && !flipping) {
       logger.debug(`Input block: ${inputBlock.slice(0, 50)}...`);
     }
 
@@ -174,6 +186,9 @@ const command = define<{
         removeMatch: configExt.removeMatch,
         removeOrphans: configExt.removeOrphans,
         comment: configExt.comment,
+        commentOut: configExt.commentOut,
+        uncomment: configExt.uncomment,
+        commented: configExt.commented,
         envsubst: configExt.envsubst,
         envsubstExclude: configExt.envsubstExclude,
         sourceLine:
@@ -195,7 +210,11 @@ const command = define<{
       const result = await processFile(processContext);
       results.push(result);
 
-      if (configExt.diff && result.status === "written" && result.originalContent !== undefined) {
+      if (
+        configExt.diff &&
+        (result.status === "written" || result.status === "flipped") &&
+        result.originalContent !== undefined
+      ) {
         await diffExt.writeDiff(
           configExt.diff,
           result.originalContent,
@@ -205,7 +224,17 @@ const command = define<{
       }
     }
 
-    if (configExt.debug || removing) {
+    if (flipping) {
+      const flippedResults = results.filter((r) => r.status === "flipped");
+      const totalFlipped = flippedResults.reduce((sum, r) => sum + (r.flipStats?.flipped || 0), 0);
+      const totalAlready = flippedResults.reduce(
+        (sum, r) => sum + (r.flipStats?.alreadyInState || 0),
+        0,
+      );
+      logger.log(
+        `Done! ${configExt.commentOut ? "Commented out" : "Uncommented"}: ${totalFlipped} flipped, ${totalAlready} already in state`,
+      );
+    } else if (configExt.debug || removing) {
       const written = results.filter((r) => r.status === "written").length;
       const skipped = results.filter((r) => r.status === "skipped").length;
       const removed = results.filter((r) => r.status === "removed").length;
@@ -238,7 +267,8 @@ cli(process.argv.slice(2), command, {
   // gunshi header banner is suppressed for it. Otherwise replicate the
   // default header (`<name> (<name> v<version>)`).
   renderHeader: async (ctx) => {
-    if ((ctx.values as Record<string, unknown> | undefined)?.read) return "";
+    const values = ctx.values as Record<string, unknown> | undefined;
+    if (values?.read || values?.["read-uncommented"]) return "";
     const name = ctx.env.name || "";
     return `${name} (${name}${ctx.env.version ? ` v${ctx.env.version}` : ""})`;
   },
