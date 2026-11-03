@@ -11,7 +11,7 @@
   "license": "ISC",
   "author": "",
   "bin": {
-    "block-in-file": "./dist/block-in-file.mjs"
+    "block-in-file": "./dist/block-in-file.standalone.mjs"
   },
   "files": [
     "dist"
