@@ -164,6 +164,8 @@ deploy=true
 
 # deploy end</code></pre> | original content restored, `[commented]` removed |
 
+| Comment out several blocks at once, by name list or regex. | `block-in-file conf.txt --comment-out-all "deploy cron"`<br>`block-in-file conf.txt --comment-out-match '^dep-'` | none | two or more managed blocks | every addressed block commented out and tagged `[commented]`; `--uncomment-all` / `--uncomment-match` restore them |
+
 | Read the effective content of a commented block. | `block-in-file hello-world.txt --name deploy --read-uncommented` | none | <pre><code># deploy start [commented]
 
 # deploy=true
@@ -216,6 +218,10 @@ deploy=true
 | `--read`                 | none    | none                      | Read mode: print the named block's contents (markers and provenance excluded) instead of writing; exits 1 when no block is found. Output is byte-exact, so `diff <(block-in-file --read -n NAME FILE) SOURCE` is a drift check against the file the block was installed from                                                                                                                                                                                 |
 | `--comment-out`          | none    | none                      | Terminal op: comment the named block's body in place (one comment prefix per line, indent-preserving) and record `[commented]` on its opener. No input read; idempotent; exits 1 when the block is missing. See [Commented-out blocks](#commented-out-blocks)                                                                                                                                                                                                |
 | `--uncomment`            | none    | none                      | Terminal op: restore a commented block in place (strip one comment layer per line, remove `[commented]`). No input read; idempotent; exits 1 when the block is missing                                                                                                                                                                                                                                                                                       |
+| `--comment-out-all`      | none    | `<names>`                 | Terminal op: comment out every block with these space-separated names, same semantics as `--comment-out`. Merges with `--comment-out`; exits 1 when no addressed block exists                                                                                                                                                                                                                                                                                |
+| `--uncomment-all`        | none    | `<names>`                 | Terminal op: restore every block with these space-separated names, same semantics as `--uncomment`. Merges with `--uncomment`; exits 1 when no addressed block exists                                                                                                                                                                                                                                                                                        |
+| `--comment-out-match`    | none    | `<regex>`                 | Terminal op: comment out every block whose name matches this regex (repeatable), like `--remove-match`. Duplicate or unclosed addressed blocks are conflicts; exits 1 when no addressed block exists                                                                                                                                                                                                                                                         |
+| `--uncomment-match`      | none    | `<regex>`                 | Terminal op: restore every block whose name matches this regex (repeatable). Same conflict and exit semantics as `--comment-out-match`                                                                                                                                                                                                                                                                                                                       |
 | `--commented`            | none    | none                      | Emit the block body commented out on insert/update; creates or flips the block to `[commented]`. Updates of an already-commented block stay commented even without this flag                                                                                                                                                                                                                                                                                 |
 | `--read-uncommented`     | none    | none                      | Read mode (implies `--read`): strip one comment prefix from each body line that carries it, returning the effective content; `--read` without it stays byte-exact verbatim                                                                                                                                                                                                                                                                                   |
 | `--source-label`         | none    | `<text>`                  | Set the opaque provenance value (`# source: <text>` with default comment `#`). Unset: `<STDIN>` for stdin, input filename for `-i FILE`. Exact lowercase `none` or `false` omit the line, including on update; reserved values are case-sensitive (`None` is an ordinary label). A path or glob materially identifying the managing source is encouraged, e.g. `files/apt-srctools/apt-src-scheme.ts` or `/etc/apt/sources.list.d/*.sources: scheme policy`. |
@@ -275,6 +281,10 @@ OPTIONS:
                                                           no input read; records [commented])
   --uncomment                                            Restore a commented-out block in place (terminal op:
                                                           strips one comment layer; removes [commented])
+  --comment-out-all <comment-out-all>                    Comment out all blocks with these space-separated names (terminal op like --comment-out)
+  --uncomment-all <uncomment-all>                        Restore all blocks with these space-separated names (terminal op like --uncomment)
+  --comment-out-match <comment-out-match>                Comment out all blocks whose names match this regex (repeatable)
+  --uncomment-match <uncomment-match>                    Restore all blocks whose names match this regex (repeatable)
   --commented                                            Emit the block body commented out (creates or flips to
                                                           [commented]; updates of a commented block stay commented)
   --read-uncommented                                     Read mode: strip one comment prefix from each body line
@@ -339,6 +349,13 @@ opener records the state. Presence of the tag is the state; the tool owns the
   line are untouched. Uncommenting strips exactly one prefix layer per line, so
   `--comment-out` then `--uncomment` restores the original byte-for-byte, including
   body lines that were genuine comments (`# note` → `# # note` → `# note`).
+  The family variants address many blocks at once: `--comment-out-all "a b"` /
+  `--uncomment-all "a b"` take space-separated names, and
+  `--comment-out-match <regex>` / `--uncomment-match <regex>` (repeatable) select
+  names like `--remove-match`. They merge with the matching base flag, refuse to
+  mix comment-out with uncomment flags, and run the duplicate/nested/unmatched
+  conflict checks on every addressed name before flipping anything; exit 1 when
+  nothing is addressed.
 - **Updates respect the recorded state**: re-running the insert command that manages
   a commented block rewrites the body from the new input _stayed commented_ — a
   running recipe does not silently re-enable a disabled block. State changes only
