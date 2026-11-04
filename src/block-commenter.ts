@@ -1,4 +1,5 @@
 import type { LoggerExtension } from "./plugins/logger.ts";
+import { detectConflicts, type Conflict } from "./conflict-detection.ts";
 import { addTags, parseTags, stripTagsForMatching, type Tag } from "./tags/tags.ts";
 import { escapeRegex } from "./block-remover.ts";
 
@@ -47,6 +48,7 @@ export function commentBody(input: string, comment: string): string {
 }
 
 export interface FlippedBlock {
+  name: string;
   startLine: number;
   endLine: number;
   target: CommentState;
@@ -62,16 +64,70 @@ export interface FlipStats {
   blocks: FlippedBlock[];
 }
 
-export interface FlipOptions {
+/** Split a space-separated block-name list, dropping empties. */
+export function splitBlockNames(spec: string): string[] {
+  return spec
+    .trim()
+    .split(/\s+/)
+    .filter((name) => name.length > 0);
+}
+
+export interface FlipSelection {
   fileContent: string;
-  /** Expected opener line, e.g. `# name start` (tags ignored when matching) */
-  opener: string;
-  /** Expected closer line, e.g. `# name end` (tags ignored when matching) */
-  closer: string;
+  /** Exact block names to flip */
+  blockNames: string[];
+  /** Regexes tested against captured block names */
+  blockNamePatterns?: RegExp[];
+  /** Comment prefix shaping markers and body transforms */
+  comment: string;
+  markerStart: string;
+  markerEnd: string;
+}
+
+/**
+ * Concrete names addressed by a flip selection: the explicit names plus every
+ * name discovered in the file whose opener matches one of the patterns.
+ */
+export function findFlipTargetNames(selection: FlipSelection): string[] {
+  const { fileContent, blockNames, blockNamePatterns = [], comment, markerStart } = selection;
+  const openerRegex = buildOpenerRegex(comment, markerStart);
+  const found = new Set<string>();
+  for (const line of fileContent.split("\n")) {
+    const match = stripTagsForMatching(line.trim()).match(openerRegex);
+    const name = match?.[1];
+    if (!name) continue;
+    if (blockNames.includes(name) || blockNamePatterns.some((pattern) => pattern.test(name))) {
+      found.add(name);
+    }
+  }
+  return [...found];
+}
+
+/**
+ * Conflict gate for flips: each concrete addressed name gets the same
+ * duplicate/nested/unmatched checks the ensure path runs on the named block,
+ * so a selection never flips a duplicated or unclosed block silently.
+ */
+export function detectFlipConflicts(selection: FlipSelection): Conflict[] {
+  const prefix = selection.comment.trimEnd();
+  const conflicts: Conflict[] = [];
+  for (const name of findFlipTargetNames(selection)) {
+    const opener = `${prefix} ${name} ${selection.markerStart}`;
+    const closer = `${prefix} ${name} ${selection.markerEnd}`;
+    conflicts.push(...detectConflicts(selection.fileContent, opener, closer).conflicts);
+  }
+  return conflicts;
+}
+
+/** Tag-stripped marker matching: `# name start` for any capturable name. */
+function buildOpenerRegex(comment: string, markerStart: string): RegExp {
+  const prefix = comment.trimEnd();
+  return new RegExp(`^${escapeRegex(prefix)}\\s+(\\S+)\\s+${escapeRegex(markerStart)}$`);
+}
+
+export interface FlipOptions extends FlipSelection {
   /** Provenance prefix (e.g. `# source:`); matching lines are never transformed */
   sourceLinePrefix?: string;
-  /** Comment character used for both prefixing and stripping */
-  comment: string;
   /** Requested state after the flip */
   target: CommentState;
   debug?: boolean;
@@ -79,18 +135,39 @@ export interface FlipOptions {
 }
 
 /**
- * Flip every occurrence of the named block between commented and active in
- * place, without reading block input. Mirrors block-reader.ts matching
- * (trim + tag-strip equality) and block-remover.ts terminal semantics:
- * the provenance line and blank lines are structural and untouched, an
- * unclosed block is transformed to end of file with a warning.
+ * Flip every occurrence of the addressed blocks (exact names or name regexes)
+ * between commented and active in place, without reading block input. Mirrors
+ * block-reader.ts matching (trim + tag-strip equality) and block-remover.ts
+ * terminal semantics: the provenance line and blank lines are structural and
+ * untouched, an unclosed block is transformed to end of file with a warning.
  */
 export function flipBlocks(opts: FlipOptions): { content: string; stats: FlipStats } {
-  const { fileContent, opener, closer, sourceLinePrefix, comment, target, debug, logger } = opts;
+  const {
+    fileContent,
+    blockNames,
+    blockNamePatterns = [],
+    comment,
+    markerStart,
+    markerEnd,
+    sourceLinePrefix,
+    target,
+    debug,
+    logger,
+  } = opts;
   const lines = fileContent.split("\n");
 
-  const isOpener = (line: string) => stripTagsForMatching(line.trim()) === opener;
-  const isCloser = (line: string) => stripTagsForMatching(line.trim()) === closer;
+  const openerRegex = buildOpenerRegex(comment, markerStart);
+  const prefix = comment.trimEnd();
+  const isTargetName = (name: string) =>
+    blockNames.includes(name) || blockNamePatterns.some((pattern) => pattern.test(name));
+
+  /** Capture the block name when the line is an opener, else null. */
+  const captureOpener = (line: string): string | null => {
+    const match = stripTagsForMatching(line.trim()).match(openerRegex);
+    return match?.[1] ?? null;
+  };
+  const isCloserOf = (line: string, name: string) =>
+    stripTagsForMatching(line.trim()) === `${prefix} ${name} ${markerEnd}`;
   const isSourceLine = (line: string) =>
     sourceLinePrefix ? line.trim().startsWith(sourceLinePrefix) : false;
 
@@ -98,12 +175,13 @@ export function flipBlocks(opts: FlipOptions): { content: string; stats: FlipSta
   const outputs: string[] = [];
 
   let openerLine: string | undefined;
+  let openerName: string | undefined;
   let openerTags: Tag[] = [];
   let body: string[] = [];
   let bodyStartLine = 0;
 
   const flush = (closerLine: string | undefined, endLine: number) => {
-    if (openerLine === undefined) return;
+    if (openerLine === undefined || openerName === undefined) return;
     const commented = hasStateTag(openerTags);
     if (commented === (target === "commented")) {
       stats.alreadyInState++;
@@ -123,22 +201,24 @@ export function flipBlocks(opts: FlipOptions): { content: string; stats: FlipSta
 
     stats.linesChanged += newBody.filter((line, i) => line !== body[i]).length;
     stats.flipped++;
-    stats.blocks.push({ startLine: bodyStartLine - 1, endLine, target });
+    stats.blocks.push({ name: openerName, startLine: bodyStartLine - 1, endLine, target });
 
     outputs.push(newOpener, ...newBody);
     if (closerLine !== undefined) outputs.push(closerLine);
 
     if (debug && logger) {
       logger.debug(
-        `Flipped block '${opener}' to ${target} at lines ${bodyStartLine - 1}-${endLine || "EOF"}`,
+        `Flipped block '${openerName}' to ${target} at lines ${bodyStartLine - 1}-${endLine || "EOF"}`,
       );
     }
   };
 
   for (const line of lines) {
     if (openerLine === undefined) {
-      if (isOpener(line)) {
+      const name = captureOpener(line);
+      if (name !== null && isTargetName(name)) {
         openerLine = line;
+        openerName = name;
         openerTags = parseTags(line);
         body = [];
         bodyStartLine = outputs.length + 2;
@@ -147,9 +227,10 @@ export function flipBlocks(opts: FlipOptions): { content: string; stats: FlipSta
       }
       continue;
     }
-    if (isCloser(line)) {
+    if (isCloserOf(line, openerName)) {
       flush(line, outputs.length + body.length + 2);
       openerLine = undefined;
+      openerName = undefined;
       body = [];
       continue;
     }

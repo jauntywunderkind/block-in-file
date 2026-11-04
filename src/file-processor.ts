@@ -13,8 +13,11 @@ import { removeBlocks, type RemovalStats } from "./block-remover.ts";
 import {
   flipBlocks,
   commentBody,
+  detectFlipConflicts,
+  splitBlockNames,
   STATE_TAG,
   hasStateTag,
+  type CommentState,
   type FlipStats,
 } from "./block-commenter.ts";
 import { substitute } from "./envsubst.ts";
@@ -56,9 +59,14 @@ export interface ProcessContext {
   removeMatch?: string[];
   removeOrphans?: boolean;
   comment?: string;
+  name?: string;
   commentOut?: boolean;
   uncomment?: boolean;
   commented?: boolean;
+  commentOutAll?: string;
+  uncommentAll?: string;
+  commentOutMatch?: string[];
+  uncommentMatch?: string[];
   envsubst?: EnvsubstMode;
   envsubstExclude?: RegExp;
   sourceAttribution?: boolean;
@@ -88,6 +96,7 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     fileContent,
     opener,
     closer,
+    name,
     inputBlock,
     before,
     after,
@@ -117,6 +126,10 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     commentOut,
     uncomment,
     commented,
+    commentOutAll,
+    uncommentAll,
+    commentOutMatch = [],
+    uncommentMatch = [],
     envsubst,
     envsubstExclude,
     sourceLine,
@@ -142,11 +155,21 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
     throw new Error("Cannot specify both --additive-before and --additive-after");
   }
 
-  if (commentOut && uncomment) {
-    throw new Error("Cannot combine --comment-out and --uncomment");
+  const commentOutFlags = [
+    ...(commentOut ? ["--comment-out"] : []),
+    ...(commentOutAll !== undefined ? ["--comment-out-all"] : []),
+    ...(commentOutMatch.length > 0 ? ["--comment-out-match"] : []),
+  ];
+  const uncommentFlags = [
+    ...(uncomment ? ["--uncomment"] : []),
+    ...(uncommentAll !== undefined ? ["--uncomment-all"] : []),
+    ...(uncommentMatch.length > 0 ? ["--uncomment-match"] : []),
+  ];
+  if (commentOutFlags.length > 0 && uncommentFlags.length > 0) {
+    throw new Error(`Cannot combine ${commentOutFlags[0]} and ${uncommentFlags[0]}`);
   }
 
-  const flipping = Boolean(commentOut || uncomment);
+  const flipping = commentOutFlags.length > 0 || uncommentFlags.length > 0;
   if (flipping && commented) {
     throw new Error("Cannot combine --comment-out/--uncomment with --commented");
   }
@@ -303,26 +326,71 @@ export async function processFile(ctx: ProcessContext): Promise<ProcessResult> {
   };
 
   if (flipping) {
-    const target = commentOut ? "commented" : "active";
-    const flagName = commentOut ? "--comment-out" : "--uncomment";
-    const { content, stats } = flipBlocks({
+    const flagNames = [...commentOutFlags, ...uncommentFlags];
+    const target: CommentState = commentOutFlags.length > 0 ? "commented" : "active";
+    const flipNames = [
+      // The base flips address --name; the family flags bring their own names.
+      ...(commentOut || uncomment ? [name ?? "blockinfile"] : []),
+      ...splitBlockNames(commentOutAll ?? ""),
+      ...splitBlockNames(uncommentAll ?? ""),
+    ];
+    const flipPatterns = [...commentOutMatch, ...uncommentMatch].map(
+      (pattern) => new RegExp(pattern),
+    );
+
+    if (flipNames.length === 0 && flipPatterns.length === 0) {
+      throw new Error(`${flagNames.join(", ")}: no block names or patterns given`);
+    }
+
+    if (debug) {
+      logger.debug(`Flipping blocks: ${flipNames.join(", ") || "(patterns only)"}`);
+      const patternSrcs = flipPatterns.map((pattern) => pattern.source).join(", ");
+      if (patternSrcs) logger.debug(`Flipping blocks matching: ${patternSrcs}`);
+    }
+
+    // Marker parts come off the prebuilt opener/closer, as the removal branch
+    // does; the conflict gate then checks every concrete addressed name like
+    // the ensure path checks the named block.
+    const comment = ctx.comment ?? "#";
+    const openerParts = opener.split(/\s+/);
+    const closerParts = closer.split(/\s+/);
+    const markerStart = openerParts[openerParts.length - 1] || "start";
+    const markerEnd = closerParts[closerParts.length - 1] || "end";
+    const selection = {
       fileContent,
-      opener,
-      closer,
+      blockNames: flipNames,
+      blockNamePatterns: flipPatterns,
+      comment,
+      markerStart,
+      markerEnd,
+    };
+
+    const conflicts = detectFlipConflicts(selection);
+    if (conflicts.length > 0) {
+      throw new Error(`File conflicts detected:\n${conflicts.map((c) => c.message).join("\n")}`);
+    }
+
+    const { content, stats } = flipBlocks({
+      ...selection,
       sourceLinePrefix,
-      comment: ctx.comment ?? "#",
       target,
       debug,
       logger,
     });
 
     if (stats.flipped === 0 && stats.alreadyInState === 0) {
-      throw new Error(`${flagName}: no block '${opener}' found in ${file}`);
+      const prefix = comment.trimEnd();
+      const names = flipNames
+        .map((blockName) => `'${prefix} ${blockName} ${markerStart}'`)
+        .join(", ");
+      const patterns = flipPatterns.map((pattern) => `/${pattern.source}/`).join(", ");
+      const address = [names, patterns].filter(Boolean).join(", ");
+      throw new Error(`${flagNames.join(", ")}: no block ${address} found in ${file}`);
     }
 
     if (debug) {
       logger.debug(
-        `${flagName}: flipped ${stats.flipped} block(s), ${stats.alreadyInState} already in state, ${stats.linesChanged} line(s) changed`,
+        `${flagNames.join(", ")}: flipped ${stats.flipped} block(s), ${stats.alreadyInState} already in state, ${stats.linesChanged} line(s) changed`,
       );
     }
 

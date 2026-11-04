@@ -179,6 +179,131 @@ describe("CLI comment-out / uncomment", () => {
     });
   });
 
+  describe("family flags", () => {
+    it("--comment-out-all flips every named block in one pass", async () => {
+      const original =
+        "# apt start\ndeb one\n# apt end\nplain\n# cron start\n0 * * * *\n# cron end\n# keep start\nstay\n# keep end\n";
+      const file = await writeFixture("f.txt", original);
+      const result = runCli(["--comment-out-all", "apt cron", file]);
+      expect(result.status).toBe(0);
+      const content = await read(file);
+      expect(content).toContain("# apt start [commented]\n# deb one\n# apt end");
+      expect(content).toContain("# cron start [commented]\n# 0 * * * *\n# cron end");
+      expect(content).toContain("# keep start\nstay\n# keep end");
+    });
+
+    it("--uncomment-all restores them byte-for-byte", async () => {
+      const original =
+        "# apt start\ndeb one\n# apt end\nplain\n# cron start\n0 * * * *\n# cron end\n";
+      const file = await writeFixture("f.txt", original);
+      runCli(["--comment-out-all", "apt cron", file]);
+      const result = runCli(["--uncomment-all", "apt cron", file]);
+      expect(result.status).toBe(0);
+      expect(await read(file)).toBe(original);
+    });
+
+    it("--comment-out-all merges with --comment-out for the named block", async () => {
+      const original = "# a start\none\n# a end\n# b start\ntwo\n# b end\n";
+      const file = await writeFixture("f.txt", original);
+      const result = runCli(["-n", "a", "--comment-out", "--comment-out-all", "b", file]);
+      expect(result.status).toBe(0);
+      const content = await read(file);
+      expect(content).toContain("# a start [commented]\n# one\n# a end");
+      expect(content).toContain("# b start [commented]\n# two\n# b end");
+    });
+
+    it("--comment-out-match flips only names matching the regex", async () => {
+      const original =
+        "# dep-apt start\ndeb\n# dep-apt end\n# keep start\nstay\n# keep end\n# dep-cron start\njob\n# dep-cron end\n";
+      const file = await writeFixture("f.txt", original);
+      const result = runCli(["--comment-out-match", "^dep-", file]);
+      expect(result.status).toBe(0);
+      const content = await read(file);
+      expect(content).toContain("# dep-apt start [commented]\n# deb\n# dep-apt end");
+      expect(content).toContain("# dep-cron start [commented]\n# job\n# dep-cron end");
+      expect(content).toContain("# keep start\nstay\n# keep end");
+    });
+
+    it("--uncomment-match restores only matching names", async () => {
+      const original =
+        "# dep-apt start [commented]\n# deb\n# dep-apt end\n# keep start [commented]\n# stay\n# keep end\n";
+      const file = await writeFixture("f.txt", original);
+      const result = runCli(["--uncomment-match", "^dep-", file]);
+      expect(result.status).toBe(0);
+      const content = await read(file);
+      expect(content).toContain("# dep-apt start\ndeb\n# dep-apt end");
+      expect(content).toContain("# keep start [commented]\n# stay\n# keep end");
+    });
+
+    it("--comment-out-all is idempotent and reports already-in-state exits 0", async () => {
+      const file = await writeFixture("f.txt", "# a start\none\n# a end\n");
+      runCli(["--comment-out-all", "a", file]);
+      const once = await read(file);
+      const result = runCli(["--comment-out-all", "a", file]);
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("already in state");
+      expect(await read(file)).toBe(once);
+    });
+
+    it("exits 1 when no addressed block exists", async () => {
+      const file = await writeFixture("f.txt", "# other start\nx\n# other end\n");
+      const all = runCli(["--comment-out-all", "missing", file]);
+      expect(all.status).toBe(1);
+      expect(all.stderr).toContain("no block");
+
+      const match = runCli(["--uncomment-match", "^nope-", file]);
+      expect(match.status).toBe(1);
+      expect(match.stderr).toContain("no block");
+    });
+
+    it("rejects mixing comment-out and uncomment family flags", async () => {
+      const file = await writeFixture("f.txt", "# a start\nx\n# a end\n");
+      const result = runCli(["--comment-out-all", "a", "--uncomment-match", "a", file]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Cannot combine");
+    });
+
+    it("rejects combining family flips with removal flags and --commented", async () => {
+      const file = await writeFixture("f.txt", "# a start\nx\n# a end\n");
+      const removal = runCli(["--comment-out-all", "a", "--remove", "a", file]);
+      expect(removal.status).toBe(1);
+      expect(removal.stderr).toContain("Cannot combine");
+
+      const commented = runCli(["--comment-out-match", "a", "--commented", file]);
+      expect(commented.status).toBe(1);
+      expect(commented.stderr).toContain("--commented");
+    });
+
+    it("surfaces duplicate-block conflicts for an addressed name", async () => {
+      const file = await writeFixture(
+        "f.txt",
+        "# dep start\none\n# dep end\nmid\n# dep start\ntwo\n# dep end\n",
+      );
+      const result = runCli(["--comment-out-match", "^dep$", file]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("conflict");
+    });
+
+    it("does not read stdin or require -i", async () => {
+      const file = await writeFixture("f.txt", "# a start\none\n# a end\n");
+      const result = runCli(["--comment-out-all", "a", file]);
+      expect(result.status).toBe(0);
+      expect(await read(file)).toContain("# a start [commented]");
+    });
+
+    it("honors a custom comment character", async () => {
+      const file = await writeFixture(
+        "f.txt",
+        "// a start\none\n// a end\n// b start\ntwo\n// b end\n",
+      );
+      const result = runCli(["-c", "//", "--comment-out-all", "a b", file]);
+      expect(result.status).toBe(0);
+      const content = await read(file);
+      expect(content).toContain("// a start [commented]\n// one\n// a end");
+      expect(content).toContain("// b start [commented]\n// two\n// b end");
+    });
+  });
+
   describe("reads", () => {
     it("--read returns the commented body verbatim", async () => {
       const file = await writeFixture(

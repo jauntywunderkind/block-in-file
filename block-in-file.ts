@@ -30,7 +30,13 @@ const command = define<{
     let files = (positionals as string[]) || [];
 
     const readMode = Boolean(configExt.read || configExt.readUncommented);
-    const flipping = Boolean(configExt.commentOut) || Boolean(configExt.uncomment);
+    const flipping =
+      Boolean(configExt.commentOut) ||
+      Boolean(configExt.uncomment) ||
+      configExt.commentOutAll !== undefined ||
+      configExt.uncommentAll !== undefined ||
+      Boolean(configExt.commentOutMatch?.length) ||
+      Boolean(configExt.uncommentMatch?.length);
 
     if (readMode && files.length === 0) {
       throw new Error("Need file argument for read mode");
@@ -186,9 +192,14 @@ const command = define<{
         removeMatch: configExt.removeMatch,
         removeOrphans: configExt.removeOrphans,
         comment: configExt.comment,
+        name: configExt.name,
         commentOut: configExt.commentOut,
         uncomment: configExt.uncomment,
         commented: configExt.commented,
+        commentOutAll: configExt.commentOutAll,
+        uncommentAll: configExt.uncommentAll,
+        commentOutMatch: configExt.commentOutMatch,
+        uncommentMatch: configExt.uncommentMatch,
         envsubst: configExt.envsubst,
         envsubstExclude: configExt.envsubstExclude,
         sourceLine:
@@ -225,6 +236,10 @@ const command = define<{
     }
 
     if (flipping) {
+      const commentingOut =
+        Boolean(configExt.commentOut) ||
+        configExt.commentOutAll !== undefined ||
+        Boolean(configExt.commentOutMatch?.length);
       const flippedResults = results.filter((r) => r.status === "flipped");
       const totalFlipped = flippedResults.reduce((sum, r) => sum + (r.flipStats?.flipped || 0), 0);
       const totalAlready = flippedResults.reduce(
@@ -232,7 +247,7 @@ const command = define<{
         0,
       );
       logger.log(
-        `Done! ${configExt.commentOut ? "Commented out" : "Uncommented"}: ${totalFlipped} flipped, ${totalAlready} already in state`,
+        `Done! ${commentingOut ? "Commented out" : "Uncommented"}: ${totalFlipped} flipped, ${totalAlready} already in state`,
       );
     } else if (configExt.debug || removing) {
       const written = results.filter((r) => r.status === "written").length;

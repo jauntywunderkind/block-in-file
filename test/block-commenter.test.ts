@@ -6,10 +6,10 @@ import {
   stripCommentLayer,
   hasStateTag,
   removeStateTag,
+  splitBlockNames,
+  findFlipTargetNames,
+  detectFlipConflicts,
 } from "../src/block-commenter.ts";
-
-const OPENER = "# myblock start";
-const CLOSER = "# myblock end";
 
 describe("commentBodyLine / stripCommentLayer", () => {
   it("prefixes plain lines with the comment character and one space", () => {
@@ -75,11 +75,20 @@ describe("state tag helpers", () => {
   });
 });
 
+describe("splitBlockNames", () => {
+  it("splits on whitespace and drops empties", () => {
+    expect(splitBlockNames("a b  c")).toEqual(["a", "b", "c"]);
+    expect(splitBlockNames("   ")).toEqual([]);
+    expect(splitBlockNames("a")).toEqual(["a"]);
+  });
+});
+
 describe("flipBlocks", () => {
   const opts = {
-    opener: OPENER,
-    closer: CLOSER,
+    blockNames: ["myblock"],
     comment: "#",
+    markerStart: "start",
+    markerEnd: "end",
     sourceLinePrefix: "# source:",
   };
 
@@ -172,12 +181,117 @@ describe("flipBlocks", () => {
   it("supports a custom comment character", () => {
     const content = "// myblock start\nalpha\n// myblock end\n";
     const { content: out } = flipBlocks({
-      opener: "// myblock start",
-      closer: "// myblock end",
+      blockNames: ["myblock"],
       comment: "//",
+      markerStart: "start",
+      markerEnd: "end",
       fileContent: content,
       target: "commented",
     });
     expect(out).toBe("// myblock start [commented]\n// alpha\n// myblock end\n");
+  });
+
+  it("flips multiple named blocks in one pass and records their names", () => {
+    const content =
+      "# a start\none\n# a end\nplain\n# b start\ntwo\n# b end\n# c start\nthree\n# c end\n";
+    const { content: out, stats } = flipBlocks({
+      blockNames: ["a", "b"],
+      comment: "#",
+      markerStart: "start",
+      markerEnd: "end",
+      fileContent: content,
+      target: "commented",
+    });
+    expect(out).toBe(
+      "# a start [commented]\n# one\n# a end\nplain\n# b start [commented]\n# two\n# b end\n# c start\nthree\n# c end\n",
+    );
+    expect(stats.flipped).toBe(2);
+    expect(stats.blocks.map((b) => b.name)).toEqual(["a", "b"]);
+  });
+
+  it("flips blocks whose names match a regex, leaving others alone", () => {
+    const content =
+      "# dep-apt start\none\n# dep-apt end\n# keep start\ntwo\n# keep end\n# dep-cron start\nthree\n# dep-cron end\n";
+    const { content: out, stats } = flipBlocks({
+      blockNames: [],
+      blockNamePatterns: [/^dep-/],
+      comment: "#",
+      markerStart: "start",
+      markerEnd: "end",
+      fileContent: content,
+      target: "commented",
+    });
+    expect(out).toContain("# dep-apt start [commented]\n# one");
+    expect(out).toContain("# dep-cron start [commented]\n# three");
+    expect(out).toContain("# keep start\ntwo");
+    expect(stats.flipped).toBe(2);
+  });
+
+  it("combines exact names and patterns in one selection", () => {
+    const content = "# a start\none\n# a end\n# x-one start\ntwo\n# x-one end\n";
+    const { stats } = flipBlocks({
+      blockNames: ["a"],
+      blockNamePatterns: [/^x-/],
+      comment: "#",
+      markerStart: "start",
+      markerEnd: "end",
+      fileContent: content,
+      target: "commented",
+    });
+    expect(stats.flipped).toBe(2);
+  });
+
+  it("binds closers to the open block's name, keeping other names as body", () => {
+    const content = "# outer start\n# inner start\nline\n# inner end\n# outer end\n";
+    const { content: out, stats } = flipBlocks({
+      blockNames: ["outer"],
+      comment: "#",
+      markerStart: "start",
+      markerEnd: "end",
+      fileContent: content,
+      target: "commented",
+    });
+    expect(out).toBe(
+      "# outer start [commented]\n# # inner start\n# line\n# # inner end\n# outer end\n",
+    );
+    expect(stats.flipped).toBe(1);
+  });
+
+  it("finds concrete target names for a selection, deduplicated", () => {
+    const content = "# a start\n# a end\n# x-one start\n# x-one end\nplain\n";
+    expect(
+      findFlipTargetNames({
+        fileContent: content,
+        blockNames: ["a", "a"],
+        blockNamePatterns: [/^x-/],
+        comment: "#",
+        markerStart: "start",
+        markerEnd: "end",
+      }),
+    ).toEqual(["a", "x-one"]);
+  });
+
+  it("detects duplicate and unmatched conflicts per addressed name", () => {
+    const duplicated = "# a start\none\n# a end\nmid\n# a start\ntwo\n# a end\n";
+    const conflicts = detectFlipConflicts({
+      fileContent: duplicated,
+      blockNames: [],
+      blockNamePatterns: [/^a$/],
+      comment: "#",
+      markerStart: "start",
+      markerEnd: "end",
+    });
+    expect(conflicts.length).toBeGreaterThan(0);
+    expect(conflicts.some((c) => c.type === "duplicate")).toBe(true);
+
+    const unclosed = "# b start\nno closer\n";
+    const unmatched = detectFlipConflicts({
+      fileContent: unclosed,
+      blockNames: ["b"],
+      comment: "#",
+      markerStart: "start",
+      markerEnd: "end",
+    });
+    expect(unmatched.some((c) => c.type === "mismatched")).toBe(true);
   });
 });

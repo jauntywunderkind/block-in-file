@@ -58,6 +58,10 @@ export interface ConfigExtension {
   uncomment?: boolean;
   commented?: boolean;
   readUncommented?: boolean;
+  commentOutAll?: string;
+  uncommentAll?: string;
+  commentOutMatch?: string[];
+  uncommentMatch?: string[];
   additive?: boolean;
   additiveBefore?: string;
   additiveAfter?: string;
@@ -256,6 +260,26 @@ export default function config() {
         description:
           "Restore a commented-out block in place (terminal op: strips one comment layer; removes [commented])",
       });
+      ctx.addGlobalOption("comment-out-all", {
+        type: "string",
+        description:
+          "Comment out all blocks with these space-separated names (terminal op like --comment-out)",
+      });
+      ctx.addGlobalOption("uncomment-all", {
+        type: "string",
+        description:
+          "Restore all blocks with these space-separated names (terminal op like --uncomment)",
+      });
+      ctx.addGlobalOption("comment-out-match", {
+        type: "string",
+        multiple: true,
+        description: "Comment out all blocks whose names match this regex (repeatable)",
+      });
+      ctx.addGlobalOption("uncomment-match", {
+        type: "string",
+        multiple: true,
+        description: "Restore all blocks whose names match this regex (repeatable)",
+      });
       ctx.addGlobalOption("commented", {
         type: "boolean",
         description:
@@ -403,6 +427,10 @@ export default function config() {
         uncomment: ctx.values.uncomment as boolean | undefined,
         commented: ctx.values.commented as boolean | undefined,
         readUncommented: ctx.values["read-uncommented"] as boolean | undefined,
+        commentOutAll: ctx.values["comment-out-all"] as string | undefined,
+        uncommentAll: ctx.values["uncomment-all"] as string | undefined,
+        commentOutMatch: ctx.values["comment-out-match"] as string[] | undefined,
+        uncommentMatch: ctx.values["uncomment-match"] as string[] | undefined,
         additive: ctx.values.additive as boolean | undefined,
         additiveBefore: ctx.values["additive-before"] as string | undefined,
         additiveAfter: ctx.values["additive-after"] as string | undefined,
