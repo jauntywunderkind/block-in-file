@@ -214,7 +214,7 @@ export function flipBlocks(opts: FlipOptions): { content: string; stats: FlipSta
   };
 
   for (const line of lines) {
-    if (openerLine === undefined) {
+    if (openerLine === undefined || openerName === undefined) {
       const name = captureOpener(line);
       if (name !== null && isTargetName(name)) {
         openerLine = line;
